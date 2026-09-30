@@ -7,7 +7,7 @@ import { makeServerCard } from '../src/surfaces/mcp/card.js';
 import { makeX402Discovery } from '../src/surfaces/x402/discovery.js';
 import { resolve } from 'node:path';
 
-const baseUrl = process.env.PUBLIC_BASE_URL ?? productMetadata.websiteUrl;
+const baseUrl = process.env['PUBLIC_BASE_URL'] ?? productMetadata.websiteUrl;
 validateRegistry();
 const catalog = getCatalog(baseUrl);
 const openapi = makeOpenApi(baseUrl);

@@ -1,1 +1,24 @@
-{}
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "com.fallback.agent-tools",
+  "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem.",
+  "title": "Fallback",
+  "websiteUrl": "https://fallback.example",
+  "repository": {
+    "url": "https://github.com/baronsigma/fallback-agent-tools",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://fallback.example/mcp"
+    }
+  ],
+  "_meta": {
+    "io.modelcontextprotocol.registry/publisher-provided": {
+      "pricingModel": "x402-pay-per-call",
+      "catalogUrl": "https://fallback.example/catalog.json"
+    }
+  }
+}

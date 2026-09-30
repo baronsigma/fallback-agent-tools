@@ -1,2 +1,42 @@
-# Generated from src/core/registry.ts and src/core/product.ts.
-{}
+product: "Fallback"
+version: 0.1.0
+description: "Small pay-per-call utilities that resolve uncertainty for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem."
+endpoints:
+  mcp: "https://fallback.example/mcp"
+  catalog: "https://fallback.example/catalog.json"
+  openapi: "https://fallback.example/openapi.json"
+  llms: "https://fallback.example/llms.txt"
+  llmsFull: "https://fallback.example/llms-full.txt"
+  serverCard: "https://fallback.example/.well-known/mcp/server-card.json"
+  x402: "https://fallback.example/.well-known/x402.json"
+tools:
+  - id: source_route
+    version: 0.1.0
+    name: source_route
+    status: planned
+    httpRoute: /v1/tools/source_route
+    mcpName: source_route
+    priceUsd: "0.01"
+    apifyActorId: fallback/source-route
+    smitheryServerId: source_route
+    glamaServerId: source_route
+  - id: stop_search
+    version: 0.1.0
+    name: stop_search
+    status: planned
+    httpRoute: /v1/tools/stop_search
+    mcpName: stop_search
+    priceUsd: "0.02"
+    apifyActorId: fallback/stop-search
+    smitheryServerId: stop_search
+    glamaServerId: stop_search
+  - id: error_route
+    version: 0.1.0
+    name: error_route
+    status: planned
+    httpRoute: /v1/tools/error_route
+    mcpName: error_route
+    priceUsd: "0.002"
+    apifyActorId: fallback/error-route
+    smitheryServerId: error_route
+    glamaServerId: error_route

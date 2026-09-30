@@ -1,1 +1,169 @@
-{}
+{
+  "name": "Fallback",
+  "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem.",
+  "version": "0.1.0",
+  "endpoints": {
+    "mcp": "https://fallback.example/mcp",
+    "catalog": "https://fallback.example/catalog.json",
+    "openapi": "https://fallback.example/openapi.json",
+    "llms": "https://fallback.example/llms.txt",
+    "llmsFull": "https://fallback.example/llms-full.txt",
+    "serverCard": "https://fallback.example/.well-known/mcp/server-card.json",
+    "x402": "https://fallback.example/.well-known/x402.json"
+  },
+  "tools": [
+    {
+      "id": "source_route",
+      "version": "0.1.0",
+      "name": "source_route",
+      "description": "Identify a suitable authoritative or machine-readable access path for a requested information source. Planned and unavailable.",
+      "category": "source-discovery",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": {}
+      },
+      "price": {
+        "amount": "0.01",
+        "currency": "USD",
+        "model": "pay-per-call"
+      },
+      "availability": "planned",
+      "httpRoute": "/v1/tools/source_route",
+      "mcpName": "source_route",
+      "examples": [
+        {
+          "title": "Planned schema placeholder",
+          "input": {}
+        }
+      ],
+      "latencyTargetMs": 1500,
+      "x402": {
+        "resourceType": "http",
+        "enabled": false,
+        "discoveryExtension": "bazaar"
+      },
+      "distribution": {
+        "apifyActorId": "fallback/source-route",
+        "smitheryServerId": "source_route",
+        "glamaServerId": "source_route"
+      }
+    },
+    {
+      "id": "stop_search",
+      "version": "0.1.0",
+      "name": "stop_search",
+      "description": "Determine whether a bounded search has gathered enough negative evidence to reasonably stop. Planned and unavailable.",
+      "category": "search-quality",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": {}
+      },
+      "price": {
+        "amount": "0.02",
+        "currency": "USD",
+        "model": "pay-per-call"
+      },
+      "availability": "planned",
+      "httpRoute": "/v1/tools/stop_search",
+      "mcpName": "stop_search",
+      "examples": [
+        {
+          "title": "Planned schema placeholder",
+          "input": {}
+        }
+      ],
+      "latencyTargetMs": 1000,
+      "x402": {
+        "resourceType": "http",
+        "enabled": false,
+        "discoveryExtension": "bazaar"
+      },
+      "distribution": {
+        "apifyActorId": "fallback/stop-search",
+        "smitheryServerId": "stop_search",
+        "glamaServerId": "stop_search"
+      }
+    },
+    {
+      "id": "error_route",
+      "version": "0.1.0",
+      "name": "error_route",
+      "description": "Classify an API or tool failure and recommend a bounded next action. Planned and unavailable.",
+      "category": "tool-recovery",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": {}
+      },
+      "price": {
+        "amount": "0.002",
+        "currency": "USD",
+        "model": "pay-per-call"
+      },
+      "availability": "planned",
+      "httpRoute": "/v1/tools/error_route",
+      "mcpName": "error_route",
+      "examples": [
+        {
+          "title": "Planned schema placeholder",
+          "input": {}
+        }
+      ],
+      "latencyTargetMs": 500,
+      "x402": {
+        "resourceType": "http",
+        "enabled": false,
+        "discoveryExtension": "bazaar"
+      },
+      "distribution": {
+        "apifyActorId": "fallback/error-route",
+        "smitheryServerId": "error_route",
+        "glamaServerId": "error_route"
+      }
+    }
+  ]
+}

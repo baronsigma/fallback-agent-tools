@@ -26,13 +26,13 @@ export type ToolRecord = {
   distribution: { apifyActorId: string; smitheryServerId: string; glamaServerId: string };
 };
 
-export const toolRegistry = [
+export const toolRegistry: readonly ToolRecord[] = [
   {
     id: 'source_route', version: '0.1.0', publicName: 'source_route',
     description: 'Identify a suitable authoritative or machine-readable access path for a requested information source. Planned and unavailable.',
     category: 'source-discovery', inputSchema: emptyInput, outputSchema: genericOutput,
     priceUsd: '0.01', availability: 'planned', httpRoute: '/v1/tools/source_route', mcpName: 'source_route',
-    examples: [{ title: 'Find an official source path', input: { query: 'planned source discovery example' } }],
+    examples: [{ title: 'Planned schema placeholder', input: {} }],
     latencyTargetMs: 1500, x402: { resourceType: 'http', enabled: false, discoveryExtension: 'bazaar' },
     distribution: { apifyActorId: 'fallback/source-route', smitheryServerId: 'source_route', glamaServerId: 'source_route' },
   },
@@ -41,7 +41,7 @@ export const toolRegistry = [
     description: 'Determine whether a bounded search has gathered enough negative evidence to reasonably stop. Planned and unavailable.',
     category: 'search-quality', inputSchema: emptyInput, outputSchema: genericOutput,
     priceUsd: '0.02', availability: 'planned', httpRoute: '/v1/tools/stop_search', mcpName: 'stop_search',
-    examples: [{ title: 'Assess bounded negative evidence', input: { query: 'planned search stopping example' } }],
+    examples: [{ title: 'Planned schema placeholder', input: {} }],
     latencyTargetMs: 1000, x402: { resourceType: 'http', enabled: false, discoveryExtension: 'bazaar' },
     distribution: { apifyActorId: 'fallback/stop-search', smitheryServerId: 'stop_search', glamaServerId: 'stop_search' },
   },
@@ -50,11 +50,11 @@ export const toolRegistry = [
     description: 'Classify an API or tool failure and recommend a bounded next action. Planned and unavailable.',
     category: 'tool-recovery', inputSchema: emptyInput, outputSchema: genericOutput,
     priceUsd: '0.002', availability: 'planned', httpRoute: '/v1/tools/error_route', mcpName: 'error_route',
-    examples: [{ title: 'Classify a tool failure', input: { query: 'planned error routing example' } }],
+    examples: [{ title: 'Planned schema placeholder', input: {} }],
     latencyTargetMs: 500, x402: { resourceType: 'http', enabled: false, discoveryExtension: 'bazaar' },
     distribution: { apifyActorId: 'fallback/error-route', smitheryServerId: 'error_route', glamaServerId: 'error_route' },
   },
-] as const satisfies readonly ToolRecord[];
+];
 
 export function validateRegistry(registry: readonly ToolRecord[] = toolRegistry): void {
   const ids = new Set<string>();

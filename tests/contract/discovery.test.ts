@@ -9,9 +9,9 @@ const baseUrl = 'https://fallback.example';
 
 describe('generated projections', () => {
   it('keeps HTTP and MCP identifiers tied to the registry', () => {
-    const spec = makeOpenApi(baseUrl) as { paths: Record<string, Record<string, { post: { operationId: string } }>> };
+    const spec = makeOpenApi(baseUrl) as { paths: Record<string, { post: { operationId: string } }> };
     for (const tool of toolRegistry) {
-      expect(spec.paths[tool.httpRoute]?.post.operationId).toBe(tool.id);
+      expect(spec.paths[tool.httpRoute]?.['post']?.operationId).toBe(tool.id);
       expect(tool.mcpName).toBe(tool.publicName);
     }
   });

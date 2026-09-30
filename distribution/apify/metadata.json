@@ -1,1 +1,44 @@
-{}
+{
+  "actorId": "fallback/agent-tools",
+  "title": "Fallback",
+  "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem.",
+  "pricing": "Pay per event; per-tool USD prices are in distribution/canonical.yaml.",
+  "tools": [
+    {
+      "id": "source_route",
+      "name": "source_route",
+      "status": "planned",
+      "mcpName": "source_route",
+      "httpRoute": "/v1/tools/source_route",
+      "marketplaceIds": {
+        "apifyActorId": "fallback/source-route",
+        "smitheryServerId": "source_route",
+        "glamaServerId": "source_route"
+      }
+    },
+    {
+      "id": "stop_search",
+      "name": "stop_search",
+      "status": "planned",
+      "mcpName": "stop_search",
+      "httpRoute": "/v1/tools/stop_search",
+      "marketplaceIds": {
+        "apifyActorId": "fallback/stop-search",
+        "smitheryServerId": "stop_search",
+        "glamaServerId": "stop_search"
+      }
+    },
+    {
+      "id": "error_route",
+      "name": "error_route",
+      "status": "planned",
+      "mcpName": "error_route",
+      "httpRoute": "/v1/tools/error_route",
+      "marketplaceIds": {
+        "apifyActorId": "fallback/error-route",
+        "smitheryServerId": "error_route",
+        "glamaServerId": "error_route"
+      }
+    }
+  ]
+}

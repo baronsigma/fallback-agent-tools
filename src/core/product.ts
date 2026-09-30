@@ -3,7 +3,7 @@ export const productMetadata = {
   description: "Small pay-per-call utilities that resolve uncertainty for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem.",
   version: '0.1.0',
   license: 'MIT',
-  repositoryUrl: 'https://github.com/REPLACE_WITH_GITHUB_OWNER/fallback-agent-tools',
+  repositoryUrl: 'https://github.com/baronsigma/fallback-agent-tools',
   websiteUrl: 'https://fallback.example',
   endpoints: {
     mcp: '/mcp',

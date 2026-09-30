@@ -1,1 +1,62 @@
-{}
+{
+  "x402Version": 2,
+  "service": {
+    "name": "Fallback",
+    "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem.",
+    "resource": "https://fallback.example"
+  },
+  "bazaar": {
+    "extension": "bazaar",
+    "configured": false
+  },
+  "resources": [
+    {
+      "id": "source_route",
+      "resource": "https://fallback.example/v1/tools/source_route",
+      "type": "http",
+      "toolName": "source_route",
+      "description": "Identify a suitable authoritative or machine-readable access path for a requested information source. Planned and unavailable.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "priceUsd": "0.01",
+      "availability": "planned",
+      "enabled": false
+    },
+    {
+      "id": "stop_search",
+      "resource": "https://fallback.example/v1/tools/stop_search",
+      "type": "http",
+      "toolName": "stop_search",
+      "description": "Determine whether a bounded search has gathered enough negative evidence to reasonably stop. Planned and unavailable.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "priceUsd": "0.02",
+      "availability": "planned",
+      "enabled": false
+    },
+    {
+      "id": "error_route",
+      "resource": "https://fallback.example/v1/tools/error_route",
+      "type": "http",
+      "toolName": "error_route",
+      "description": "Classify an API or tool failure and recommend a bounded next action. Planned and unavailable.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "priceUsd": "0.002",
+      "availability": "planned",
+      "enabled": false
+    }
+  ]
+}
