@@ -7,7 +7,7 @@
     {
       "id": "source_route",
       "name": "source_route",
-      "status": "planned",
+      "status": "available",
       "mcpName": "source_route",
       "httpRoute": "/v1/tools/source_route",
       "marketplaceIds": {

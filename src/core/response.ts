@@ -4,6 +4,7 @@ export type ExecutionMetadata = {
   startedAt: string;
   completedAt: string;
   durationMs: number;
+  metrics?: { outboundHttpRequests: number; paidSearchCalls: number; discoverySource: 'direct' | 'search_fallback' | 'none' };
 };
 
 export type ToolResponse<T> = {
@@ -25,6 +26,7 @@ export type ToolResponse<T> = {
 export function successResponse<T>(args: {
   toolId: string; toolVersion: string; requestId: string; result: T;
   startedAt: Date; completedAt?: Date;
+  executionMetrics?: NonNullable<ExecutionMetadata['metrics']>;
 }): ToolResponse<T> {
   const completedAt = args.completedAt ?? new Date();
   return {
@@ -37,6 +39,7 @@ export function successResponse<T>(args: {
       startedAt: args.startedAt.toISOString(),
       completedAt: completedAt.toISOString(),
       durationMs: Math.max(0, completedAt.getTime() - args.startedAt.getTime()),
+      ...(args.executionMetrics ? { metrics: args.executionMetrics } : {}),
     },
   };
 }

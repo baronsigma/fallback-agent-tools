@@ -1,22 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/mcp-server-card/v1.json",
   "version": "1.0",
-  "protocolVersion": "2025-11-25",
+  "protocolVersion": "2026-07-28",
   "serverInfo": {
     "name": "fallback-agent-tools",
     "title": "Fallback",
     "version": "0.1.0"
   },
-  "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem.",
+  "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem. MCP transport is inactive in this beta.",
   "documentationUrl": "https://fallback.example/README.md",
   "transport": {
     "type": "streamable-http",
     "endpoint": "/mcp"
   },
-  "capabilities": {
-    "tools": {
-      "listChanged": false
-    }
-  },
-  "tools": []
+  "capabilities": {}
 }

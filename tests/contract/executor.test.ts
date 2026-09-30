@@ -5,6 +5,6 @@ import { ToolUnavailableError } from '../../src/core/errors.js';
 describe('availability enforcement', () => {
   it('prevents planned tools from executing', async () => {
     const handler = async () => { throw new Error('must not execute'); };
-    await expect(executeTool('source_route', handler)).rejects.toBeInstanceOf(ToolUnavailableError);
+    await expect(executeTool('stop_search', handler)).rejects.toBeInstanceOf(ToolUnavailableError);
   });
 });

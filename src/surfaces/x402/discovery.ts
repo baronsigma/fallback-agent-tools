@@ -14,7 +14,7 @@ export function makeX402Discovery(baseUrl: string): Record<string, unknown> {
       type: tool.x402.resourceType,
       toolName: tool.mcpName,
       description: tool.description,
-      inputSchema: tool.inputSchema.toJSONSchema(),
+      inputSchema: tool.inputSchema.toJSONSchema({ io: 'input' }),
       priceUsd: tool.priceUsd,
       availability: tool.availability,
       enabled: tool.x402.enabled,

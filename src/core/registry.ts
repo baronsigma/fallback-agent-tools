@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isValidPrice } from './pricing.js';
+import { sourceRouteInputSchema, sourceRouteOutputSchema } from '../tools/source-route/contract.js';
 
 const emptyInput = z.object({}).strict();
 const genericOutput = z.object({ status: z.string() }).passthrough();
@@ -29,11 +30,11 @@ export type ToolRecord = {
 export const toolRegistry: readonly ToolRecord[] = [
   {
     id: 'source_route', version: '0.1.0', publicName: 'source_route',
-    description: 'Identify a suitable authoritative or machine-readable access path for a requested information source. Planned and unavailable.',
-    category: 'source-discovery', inputSchema: emptyInput, outputSchema: genericOutput,
-    priceUsd: '0.01', availability: 'planned', httpRoute: '/v1/tools/source_route', mcpName: 'source_route',
-    examples: [{ title: 'Planned schema placeholder', input: {} }],
-    latencyTargetMs: 1500, x402: { resourceType: 'http', enabled: false, discoveryExtension: 'bazaar' },
+    description: 'Find a practical, preferably authoritative and machine-readable route for obtaining information. Bounded deterministic discovery with at most one external search fallback.',
+    category: 'source-discovery', inputSchema: sourceRouteInputSchema, outputSchema: sourceRouteOutputSchema,
+    priceUsd: '0.02', availability: 'available', httpRoute: '/v1/tools/source_route', mcpName: 'source_route',
+    examples: [{ title: 'Find a machine-readable route', input: { goal: 'Download the latest population dataset', domain: 'statistics.example' }, expected: 'routes_found or no_suitable_route_found within checked scope' }],
+    latencyTargetMs: 12000, x402: { resourceType: 'http', enabled: false, discoveryExtension: 'bazaar' },
     distribution: { apifyActorId: 'fallback/source-route', smitheryServerId: 'source_route', glamaServerId: 'source_route' },
   },
   {
@@ -68,8 +69,8 @@ export function validateRegistry(registry: readonly ToolRecord[] = toolRegistry)
     if (mcpNames.has(tool.mcpName)) throw new Error(`Duplicate MCP name: ${tool.mcpName}`);
     ids.add(tool.id); publicNames.add(tool.publicName); routes.add(tool.httpRoute); mcpNames.add(tool.mcpName);
     if (!isValidPrice(tool.priceUsd)) throw new Error(`Invalid USD price for ${tool.id}: ${tool.priceUsd}`);
-    tool.inputSchema.parse({});
-    tool.outputSchema.parse({ status: 'schema-check' });
+    tool.inputSchema.parse(tool.examples[0]?.input ?? {});
+    tool.outputSchema.toJSONSchema();
   }
 }
 

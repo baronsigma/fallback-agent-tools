@@ -2,6 +2,11 @@
   "name": "Fallback",
   "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem.",
   "version": "0.1.0",
+  "transports": {
+    "http": "active",
+    "mcp": "inactive",
+    "payment": "disabled"
+  },
   "endpoints": {
     "mcp": "https://fallback.example/mcp",
     "catalog": "https://fallback.example/catalog.json",
@@ -16,12 +21,53 @@
       "id": "source_route",
       "version": "0.1.0",
       "name": "source_route",
-      "description": "Identify a suitable authoritative or machine-readable access path for a requested information source. Planned and unavailable.",
+      "description": "Find a practical, preferably authoritative and machine-readable route for obtaining information. Bounded deterministic discovery with at most one external search fallback.",
       "category": "source-discovery",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
-        "properties": {},
+        "properties": {
+          "goal": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          },
+          "domain": {
+            "type": "string",
+            "maxLength": 253,
+            "format": "hostname",
+            "pattern": "^(?=.{1,253}\\.?$)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[-0-9a-zA-Z]{0,61}[0-9a-zA-Z])?)*\\.?$"
+          },
+          "preferred_formats": {
+            "maxItems": 7,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "json",
+                "csv",
+                "xml",
+                "rss",
+                "api",
+                "bulk_download",
+                "html"
+              ]
+            }
+          },
+          "require_official": {
+            "default": false,
+            "type": "boolean"
+          },
+          "max_candidates": {
+            "default": 5,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "goal"
+        ],
         "additionalProperties": false
       },
       "outputSchema": {
@@ -29,29 +75,146 @@
         "type": "object",
         "properties": {
           "status": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "routes_found",
+              "no_suitable_route_found",
+              "insufficient_input"
+            ]
+          },
+          "routes": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "route_type": {
+                  "type": "string",
+                  "enum": [
+                    "official_api",
+                    "openapi",
+                    "bulk_download",
+                    "structured_feed",
+                    "dataset",
+                    "developer_docs",
+                    "structured_web",
+                    "web"
+                  ]
+                },
+                "format": {
+                  "type": "string"
+                },
+                "publisher_match": {
+                  "type": "string",
+                  "enum": [
+                    "exact_domain",
+                    "linked_from_domain",
+                    "search_discovered"
+                  ]
+                },
+                "machine_readable": {
+                  "type": "boolean"
+                },
+                "auth": {
+                  "type": "string",
+                  "enum": [
+                    "none_observed",
+                    "appears_required",
+                    "unknown"
+                  ]
+                },
+                "score": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "reasons": {
+                  "maxItems": 8,
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "url",
+                "route_type",
+                "publisher_match",
+                "machine_readable",
+                "auth",
+                "score",
+                "reasons"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "checked": {
+            "type": "object",
+            "properties": {
+              "direct_probes": {
+                "maxItems": 16,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "pages_fetched": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "search_queries": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": [
+              "direct_probes",
+              "pages_fetched",
+              "search_queries"
+            ],
+            "additionalProperties": false
+          },
+          "limitations": {
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
-          "status"
+          "status",
+          "routes",
+          "checked",
+          "limitations"
         ],
-        "additionalProperties": {}
+        "additionalProperties": false
       },
       "price": {
-        "amount": "0.01",
+        "amount": "0.02",
         "currency": "USD",
         "model": "pay-per-call"
       },
-      "availability": "planned",
+      "availability": "available",
       "httpRoute": "/v1/tools/source_route",
       "mcpName": "source_route",
       "examples": [
         {
-          "title": "Planned schema placeholder",
-          "input": {}
+          "title": "Find a machine-readable route",
+          "input": {
+            "goal": "Download the latest population dataset",
+            "domain": "statistics.example"
+          },
+          "expected": "routes_found or no_suitable_route_found within checked scope"
         }
       ],
-      "latencyTargetMs": 1500,
+      "latencyTargetMs": 12000,
       "x402": {
         "resourceType": "http",
         "enabled": false,

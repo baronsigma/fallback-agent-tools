@@ -1,12 +1,12 @@
 {
   "name": "Fallback",
   "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem.",
-  "mcpUrl": "https://fallback.example/mcp",
+  "transportStatus": "inactive",
   "tools": [
     {
       "id": "source_route",
       "name": "source_route",
-      "status": "planned",
+      "status": "available",
       "mcpName": "source_route",
       "httpRoute": "/v1/tools/source_route",
       "marketplaceIds": {

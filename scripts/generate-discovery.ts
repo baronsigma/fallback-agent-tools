@@ -18,6 +18,7 @@ const distribution = {
   version: productMetadata.version,
   description: productMetadata.description,
   endpoints: Object.fromEntries(Object.entries(productMetadata.endpoints).map(([key, path]) => [key, `${baseUrl}${path}`])),
+  transports: productMetadata.transports,
   pricing: Object.fromEntries(toolRegistry.map((tool) => [tool.id, { amount: tool.priceUsd, currency: 'USD', model: 'pay-per-call' }])),
   tools: toolRegistry.map((tool) => ({ id: tool.id, name: tool.publicName, status: tool.availability, mcpName: tool.mcpName, httpRoute: tool.httpRoute, marketplaceIds: tool.distribution })),
 };
@@ -29,18 +30,21 @@ const serverJson = {
   websiteUrl: productMetadata.websiteUrl,
   repository: { url: productMetadata.repositoryUrl, source: 'github' },
   version: productMetadata.version,
-  remotes: [{ type: 'streamable-http', url: `${baseUrl}/mcp` }],
+  ...(productMetadata.transports.mcpEnabled ? { remotes: [{ type: 'streamable-http', url: `${baseUrl}/mcp` }] } : {}),
   _meta: { 'io.modelcontextprotocol.registry/publisher-provided': { pricingModel: 'x402-pay-per-call', catalogUrl: `${baseUrl}/catalog.json` } },
 };
 const apify = { actorId: 'fallback/agent-tools', title: productMetadata.name, description: productMetadata.description, pricing: 'Pay per event; per-tool USD prices are in distribution/canonical.yaml.', tools: distribution.tools };
 const listings = {
-  smithery: { name: 'fallback-agent-tools', description: productMetadata.description, mcpUrl: `${baseUrl}/mcp`, tools: distribution.tools },
-  glama: { name: 'Fallback', description: productMetadata.description, mcpUrl: `${baseUrl}/mcp`, tools: distribution.tools },
+  smithery: { name: 'fallback-agent-tools', description: productMetadata.description, transportStatus: productMetadata.transports.mcpEnabled ? 'active' : 'inactive', ...(productMetadata.transports.mcpEnabled ? { mcpUrl: `${baseUrl}/mcp` } : {}), tools: distribution.tools },
+  glama: { name: 'Fallback', description: productMetadata.description, transportStatus: productMetadata.transports.mcpEnabled ? 'active' : 'inactive', ...(productMetadata.transports.mcpEnabled ? { mcpUrl: `${baseUrl}/mcp` } : {}), tools: distribution.tools },
 };
 const yaml = [
   `product: ${JSON.stringify(distribution.product)}`,
   `version: ${distribution.version}`,
   `description: ${JSON.stringify(distribution.description)}`,
+  'transports:',
+  `  http: ${productMetadata.transports.httpEnabled ? 'active' : 'inactive'}`,
+  `  mcp: ${productMetadata.transports.mcpEnabled ? 'active' : 'inactive'}`,
   'endpoints:',
   ...Object.entries(distribution.endpoints).map(([key, value]) => `  ${key}: ${JSON.stringify(value)}`),
   'tools:',

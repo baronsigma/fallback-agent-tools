@@ -18,13 +18,13 @@
       "post": {
         "operationId": "source_route",
         "summary": "source_route",
-        "description": "Identify a suitable authoritative or machine-readable access path for a requested information source. Planned and unavailable.",
+        "description": "Find a practical, preferably authoritative and machine-readable route for obtaining information. Bounded deterministic discovery with at most one external search fallback.",
         "tags": [
           "source-discovery"
         ],
         "x-fallback-tool-id": "source_route",
-        "x-fallback-status": "planned",
-        "x-fallback-price-usd": "0.01",
+        "x-fallback-status": "available",
+        "x-fallback-price-usd": "0.02",
         "requestBody": {
           "required": true,
           "content": {
@@ -32,7 +32,48 @@
               "schema": {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "type": "object",
-                "properties": {},
+                "properties": {
+                  "goal": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  },
+                  "domain": {
+                    "type": "string",
+                    "maxLength": 253,
+                    "format": "hostname",
+                    "pattern": "^(?=.{1,253}\\.?$)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[-0-9a-zA-Z]{0,61}[0-9a-zA-Z])?)*\\.?$"
+                  },
+                  "preferred_formats": {
+                    "maxItems": 7,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "json",
+                        "csv",
+                        "xml",
+                        "rss",
+                        "api",
+                        "bulk_download",
+                        "html"
+                      ]
+                    }
+                  },
+                  "require_official": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "max_candidates": {
+                    "default": 5,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  }
+                },
+                "required": [
+                  "goal"
+                ],
                 "additionalProperties": false
               }
             }

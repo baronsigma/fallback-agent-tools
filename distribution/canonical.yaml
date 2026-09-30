@@ -1,6 +1,9 @@
 product: "Fallback"
 version: 0.1.0
 description: "Small pay-per-call utilities that resolve uncertainty for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem."
+transports:
+  http: active
+  mcp: inactive
 endpoints:
   mcp: "https://fallback.example/mcp"
   catalog: "https://fallback.example/catalog.json"
@@ -13,10 +16,10 @@ tools:
   - id: source_route
     version: 0.1.0
     name: source_route
-    status: planned
+    status: available
     httpRoute: /v1/tools/source_route
     mcpName: source_route
-    priceUsd: "0.01"
+    priceUsd: "0.02"
     apifyActorId: fallback/source-route
     smitheryServerId: source_route
     glamaServerId: source_route

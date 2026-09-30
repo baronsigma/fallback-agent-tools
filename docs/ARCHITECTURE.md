@@ -12,6 +12,8 @@ HTTP or MCP transport -> transport/payment adapter -> shared availability gate -
 
 An unavailable tool is denied before its handler can run. An available paid tool will be exposed only after its payment configuration is verified. HTTP and MCP must call the same handler implementation.
 
+`source_route` is the first available handler. It calls a shared safe-fetch utility that permits only HTTP/HTTPS to public addresses, revalidates redirects, pins a validated DNS result for the connection, limits request/response size, and enforces time budgets. Its `SearchProvider` interface has a Brave adapter and supports injected fakes. The HTTP adapter calls the same handler; the MCP transport remains an inactive placeholder, and the MCP card advertises no callable tool until that transport is wired.
+
 ## Response envelope
 
 Success and failure responses share `success`, `toolId`, `toolVersion`, `requestId`, and `execution`. Success carries `result`; failure carries a structured error with code, message, retryability, and optional details. Confidence or evidence fields belong only to tools whose semantics require them.
@@ -22,7 +24,7 @@ Success and failure responses share `success`, `toolId`, `toolVersion`, `request
 - MCP Registry `server.json` uses the official registry server schema version dated 2025-12-11.
 - The MCP Server Card follows the published MCP Server Card v1 schema and well-known URI. This surface is supplemental discovery metadata; server-card work is tracked separately from the MCP core tools protocol.
 - x402 Bazaar discovery uses the official `bazaar` extension on payable route declarations. It is not a standalone catalog file format. `/.well-known/x402.json` is Fallback's own readiness and canonical metadata projection, not a claimed x402-standard endpoint.
-- Planned tools are omitted from the MCP card's callable tool list and are not advertised as payable Bazaar resources.
+- Payment and Bazaar discovery remain disabled for all tools, including the available beta implementation.
 
 ## Dependencies
 

@@ -7,14 +7,15 @@
   "type": "module",
   "engines": { "node": ">=22.0.0" },
   "scripts": {
-    "dev": "tsx src/index.ts",
+    "dev": "node --env-file-if-exists=.env --import tsx src/index.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/src/index.js",
+    "start": "node --env-file-if-exists=.env dist/src/index.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "generate": "tsx scripts/generate-discovery.ts",
     "verify:catalog": "tsx scripts/verify-catalog.ts",
+    "benchmark:source-route": "tsx scripts/benchmark-source-route.ts",
     "release:check": "tsx scripts/release-check.ts"
   },
   "dependencies": {

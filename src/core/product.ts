@@ -14,5 +14,6 @@ export const productMetadata = {
     serverCard: '/.well-known/mcp/server-card.json',
     x402: '/.well-known/x402.json',
   },
+  transports: { httpEnabled: true, mcpEnabled: false },
   x402: { version: 2, bazaarExtension: 'bazaar', configured: false },
 } as const;

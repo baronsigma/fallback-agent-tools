@@ -11,7 +11,7 @@ export function makeOpenApi(baseUrl: string): Record<string, unknown> {
       'x-fallback-tool-id': tool.id,
       'x-fallback-status': tool.availability,
       'x-fallback-price-usd': tool.priceUsd,
-      requestBody: { required: true, content: { 'application/json': { schema: tool.inputSchema.toJSONSchema() } } },
+      requestBody: { required: true, content: { 'application/json': { schema: tool.inputSchema.toJSONSchema({ io: 'input' }) } } },
       responses: {
         '200': { description: 'Tool response envelope', content: { 'application/json': { schema: { $ref: '#/components/schemas/ToolResponse' } } } },
         '402': { description: 'Payment required for an available paid tool.' },

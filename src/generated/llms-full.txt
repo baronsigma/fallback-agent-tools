@@ -8,23 +8,23 @@ MCP endpoint: https://fallback.example/mcp
 ## Tools
 
 ### source_route
-Identify a suitable authoritative or machine-readable access path for a requested information source. Planned and unavailable.
-Status: planned
-Price: $0.01 USD per call
+Find a practical, preferably authoritative and machine-readable route for obtaining information. Bounded deterministic discovery with at most one external search fallback.
+Status: available
+Price: $0.02 USD per call
 HTTP: https://fallback.example/v1/tools/source_route
-MCP: source_route
+MCP: inactive (reserved identifier: source_route)
 Category: source-discovery
-Latency target: 1500 ms
-Input schema: {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{},"additionalProperties":false}
-Output schema: {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"status":{"type":"string"}},"required":["status"],"additionalProperties":{}}
-Example: {}
+Latency target: 12000 ms
+Input schema: {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"goal":{"type":"string","minLength":3,"maxLength":500},"domain":{"type":"string","maxLength":253,"format":"hostname","pattern":"^(?=.{1,253}\\.?$)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[-0-9a-zA-Z]{0,61}[0-9a-zA-Z])?)*\\.?$"},"preferred_formats":{"maxItems":7,"type":"array","items":{"type":"string","enum":["json","csv","xml","rss","api","bulk_download","html"]}},"require_official":{"default":false,"type":"boolean"},"max_candidates":{"default":5,"type":"integer","minimum":1,"maximum":10}},"required":["goal"],"additionalProperties":false}
+Output schema: {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"status":{"type":"string","enum":["routes_found","no_suitable_route_found","insufficient_input"]},"routes":{"maxItems":10,"type":"array","items":{"type":"object","properties":{"url":{"type":"string","format":"uri"},"route_type":{"type":"string","enum":["official_api","openapi","bulk_download","structured_feed","dataset","developer_docs","structured_web","web"]},"format":{"type":"string"},"publisher_match":{"type":"string","enum":["exact_domain","linked_from_domain","search_discovered"]},"machine_readable":{"type":"boolean"},"auth":{"type":"string","enum":["none_observed","appears_required","unknown"]},"score":{"type":"number","minimum":0,"maximum":1},"reasons":{"maxItems":8,"type":"array","items":{"type":"string"}}},"required":["url","route_type","publisher_match","machine_readable","auth","score","reasons"],"additionalProperties":false}},"checked":{"type":"object","properties":{"direct_probes":{"maxItems":16,"type":"array","items":{"type":"string"}},"pages_fetched":{"type":"integer","minimum":0,"maximum":9007199254740991},"search_queries":{"type":"integer","minimum":0,"maximum":1}},"required":["direct_probes","pages_fetched","search_queries"],"additionalProperties":false},"limitations":{"maxItems":12,"type":"array","items":{"type":"string"}}},"required":["status","routes","checked","limitations"],"additionalProperties":false}
+Example: {"goal":"Download the latest population dataset","domain":"statistics.example"}
 
 ### stop_search
 Determine whether a bounded search has gathered enough negative evidence to reasonably stop. Planned and unavailable.
 Status: planned
 Price: $0.02 USD per call
 HTTP: https://fallback.example/v1/tools/stop_search
-MCP: stop_search
+MCP: inactive (reserved identifier: stop_search)
 Category: search-quality
 Latency target: 1000 ms
 Input schema: {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{},"additionalProperties":false}
@@ -36,7 +36,7 @@ Classify an API or tool failure and recommend a bounded next action. Planned and
 Status: planned
 Price: $0.002 USD per call
 HTTP: https://fallback.example/v1/tools/error_route
-MCP: error_route
+MCP: inactive (reserved identifier: error_route)
 Category: tool-recovery
 Latency target: 500 ms
 Input schema: {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{},"additionalProperties":false}
