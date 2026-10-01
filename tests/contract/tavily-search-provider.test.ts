@@ -6,13 +6,20 @@ describe('Tavily Search provider adapter', () => {
     let request: RequestInit | undefined;
     const provider = new TavilySearchProvider('secret-placeholder', async (_input, init) => {
       request = init;
-      return new Response(JSON.stringify({ results: [{ url: 'https://data.example/api', title: 'API', content: 'Official API docs' }] }));
+      return new Response(JSON.stringify({ results: [{ url: 'https://data.example/api', title: 'API', content: 'Official API docs', score: 0.91 }] }));
     });
-    const results = await provider.search('dataset', { timeoutMs: 1000 });
+    const results = await provider.search('dataset', { timeoutMs: 1000, preferredDomains: ['data.example'] });
     expect(request?.method).toBe('POST');
     expect(new Headers(request?.headers).get('authorization')).toBe('Bearer secret-placeholder');
-    expect(JSON.parse(String(request?.body))).toMatchObject({ search_depth: 'basic', max_results: 10, include_answer: false, include_raw_content: false });
-    expect(results).toEqual([{ url: 'https://data.example/api', title: 'API', description: 'Official API docs' }]);
+    expect(JSON.parse(String(request?.body))).toMatchObject({ search_depth: 'basic', max_results: 10, include_answer: false, include_raw_content: false, include_domains: ['data.example'], include_domains_mode: 'prefer' });
+    expect(results).toEqual([{ url: 'https://data.example/api', title: 'API', description: 'Official API docs', providerScore: 0.91 }]);
+  });
+
+  it('uses restricted publisher domains when required', async () => {
+    let body = '';
+    const provider = new TavilySearchProvider('key', async (_input, init) => { body = String(init?.body); return new Response('{"results":[]}'); });
+    await provider.search('x', { timeoutMs: 1000, restrictDomains: ['sec.gov'] });
+    expect(JSON.parse(body)).toMatchObject({ include_domains: ['sec.gov'], include_domains_mode: 'restrict' });
   });
 
   it('accepts empty results and ignores malformed entries', async () => {

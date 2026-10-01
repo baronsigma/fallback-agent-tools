@@ -1,8 +1,9 @@
-export type SearchHit = { url: string; title: string; description: string };
+export type SearchHit = { url: string; title: string; description: string; providerScore?: number };
+export type SearchOptions = { timeoutMs: number; preferredDomains?: string[]; restrictDomains?: string[] };
 
 export interface SearchProvider {
   readonly id: 'tavily' | 'brave' | 'fake';
-  search(query: string, options: { timeoutMs: number }): Promise<SearchHit[]>;
+  search(query: string, options: SearchOptions): Promise<SearchHit[]>;
 }
 
 async function readBoundedBody(response: Response, maxBytes: number, provider: string): Promise<string> {
@@ -35,7 +36,8 @@ function mappedHits(value: unknown, provider: string, resultField: string, descr
       const url = new URL(hit['url']);
       if (!['http:', 'https:'].includes(url.protocol)) return [];
     } catch { return []; }
-    return [{ url: hit['url'], title: hit['title'].slice(0, 500), description: (hit[descriptionField] as string).slice(0, 2000) }];
+    const score = typeof hit['score'] === 'number' && Number.isFinite(hit['score']) ? Math.max(0, Math.min(1, hit['score'])) : undefined;
+    return [{ url: hit['url'], title: hit['title'].slice(0, 500), description: (hit[descriptionField] as string).slice(0, 2000), ...(score !== undefined && provider === 'Tavily' ? { providerScore: score } : {}) }];
   }).slice(0, 10);
 }
 
@@ -45,11 +47,14 @@ export class TavilySearchProvider implements SearchProvider {
     if (!apiKey.trim()) throw new Error('Tavily API key is required.');
   }
 
-  async search(query: string, options: { timeoutMs: number }): Promise<SearchHit[]> {
+  async search(query: string, options: SearchOptions): Promise<SearchHit[]> {
+    const domainHints = options.restrictDomains?.length
+      ? { include_domains: options.restrictDomains, include_domains_mode: 'restrict' }
+      : options.preferredDomains?.length ? { include_domains: options.preferredDomains, include_domains_mode: 'prefer' } : {};
     const response = await this.fetchImpl('https://api.tavily.com/search', {
       method: 'POST',
       headers: { authorization: `Bearer ${this.apiKey}`, 'content-type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify({ query, search_depth: 'basic', topic: 'general', max_results: 10, include_answer: false, include_raw_content: false, include_images: false }),
+      body: JSON.stringify({ query, search_depth: 'basic', topic: 'general', max_results: 10, include_answer: false, include_raw_content: false, include_images: false, ...domainHints }),
       signal: AbortSignal.timeout(options.timeoutMs), redirect: 'error',
     });
     if (!response.ok) throw new Error(`Tavily Search returned HTTP ${response.status}.`);
@@ -66,7 +71,7 @@ export class BraveSearchProvider implements SearchProvider {
     if (!apiKey.trim()) throw new Error('Brave Search API key is required.');
   }
 
-  async search(query: string, options: { timeoutMs: number }): Promise<SearchHit[]> {
+  async search(query: string, options: SearchOptions): Promise<SearchHit[]> {
     const url = new URL('https://api.search.brave.com/res/v1/web/search');
     url.searchParams.set('q', query);
     url.searchParams.set('count', '10');

@@ -77,22 +77,21 @@
       "json"
     ],
     "acceptable_route_types": [
-      "official_api",
       "dataset",
+      "bulk_download",
+      "official_api",
       "developer_docs"
     ],
     "expected_domains": [
       "ec.europa.eu",
       "ec.europa.eu/eurostat"
     ],
-    "notes": "Eurostat data browser or dissemination API.",
+    "notes": "Eurostat data browser or dissemination API. The population-demography database is acceptable because it directly provides the stated population statistics, even if it is not a machine API.",
     "start_url": "https://ec.europa.eu/eurostat/",
     "required_url_terms_any": [
-      "eurostat",
       "population",
-      "dataset",
-      "api",
-      "data"
+      "demograph",
+      "eurostat"
     ],
     "forbidden_url_terms": [
       "sitemap",
@@ -164,7 +163,8 @@
     "acceptable_route_types": [
       "official_api",
       "dataset",
-      "developer_docs"
+      "developer_docs",
+      "openapi"
     ],
     "expected_domains": [
       "sec.gov",
@@ -514,7 +514,8 @@
     "acceptable_route_types": [
       "official_api",
       "developer_docs",
-      "dataset"
+      "dataset",
+      "openapi"
     ],
     "expected_domains": [
       "openalex.org"
@@ -545,7 +546,8 @@
     "acceptable_route_types": [
       "official_api",
       "dataset",
-      "developer_docs"
+      "developer_docs",
+      "structured_feed"
     ],
     "expected_domains": [
       "usgs.gov",

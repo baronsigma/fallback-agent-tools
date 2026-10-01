@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { discoverSourceRoutes, rankCandidates } from '../../src/tools/source-route/discovery.js';
+import { goalRelevance } from '../../src/tools/source-route/discovery.js';
 import { parseSourceRouteInput } from '../../src/tools/source-route/contract.js';
 import { FakeSearchProvider } from '../../src/tools/source-route/search-provider.js';
 import type { SafeFetchResult, SafeFetcher } from '../../src/core/safe-fetch.js';
@@ -40,7 +41,7 @@ describe('bounded deterministic discovery', () => {
     expect(result.metrics.requests.length).toBeLessThanOrEqual(8);
     expect(provider.calls).toHaveLength(0);
     expect(result.metrics.searchQueries).toBe(0);
-    expect(result.metrics.requests).toHaveLength(2);
+    expect(result.metrics.requests).toHaveLength(4);
   });
 
   it('finds CSV, RSS, llms.txt, and sitemap structured routes', async () => {
@@ -148,6 +149,48 @@ describe('bounded deterministic discovery', () => {
     expect(provider.calls).toHaveLength(1);
     expect(result.metrics.searchQueries).toBe(1);
     expect(result.routes.some((route) => route.publisher_match === 'search_discovered')).toBe(true);
+  });
+
+  it('skips search when a relevant publisher-linked documentation route is already strong', async () => {
+    const provider = new FakeSearchProvider([]);
+    const fetcher = fixtureFetcher({ [`${root}/`]: { body: '<a href="/docs/population-api">Population API documentation</a>' } });
+    const result = await discoverSourceRoutes(parseSourceRouteInput({ goal: 'Find population API documentation', domain: 'statistics.test' }), { fetcher, searchProvider: provider, validateUrl });
+    expect(result.routes[0]?.route_type).toBe('developer_docs');
+    expect(provider.calls).toHaveLength(0);
+  });
+
+  it('uses retained search text to rank topic relevant candidate above generic page', () => {
+    const generic = { url: 'https://api.worldbank.org', route_type: 'official_api', format: 'api', publisher_match: 'same_site', verification: 'publisher_linked', machine_readable: true, auth: 'unknown', score: 0, reasons: [], rankingText: 'World Bank API homepage' } as RouteCandidate & { rankingText: string };
+    const indicator = { url: 'https://api.worldbank.org/v2/indicator/SP.POP.TOTL', route_type: 'official_api', format: 'api', publisher_match: 'same_site', verification: 'publisher_linked', machine_readable: true, auth: 'unknown', score: 0, reasons: [], rankingText: 'World Bank population total indicator API' } as RouteCandidate & { rankingText: string };
+    expect(rankCandidates([generic, indicator], ['api'], false, 'Find World Bank population indicators API')[0]?.url).toContain('/indicator/');
+  });
+
+  it('uses link and search descriptions to distinguish GitHub repository docs and Crossref retrieval docs', () => {
+    expect(goalRelevance('Find GitHub REST API repository documentation', 'GitHub REST API repository endpoints')).toBeGreaterThan(goalRelevance('Find GitHub REST API repository documentation', 'GitHub API documentation topic page'));
+    expect(goalRelevance('Find Crossref scholarly metadata API documentation', 'Crossref retrieve metadata REST API documentation')).toBeGreaterThan(goalRelevance('Find Crossref scholarly metadata API documentation', 'Crossref general retrieval and query homepage'));
+    expect(goalRelevance('Find WHO global health observatory indicator data', 'WHO global health observatory indicator API')).toBeGreaterThan(goalRelevance('Find WHO global health observatory indicator data', 'WHO generic global health observatory landing page'));
+  });
+
+  it.each([
+    ['Find GitHub REST API repository documentation', 'GitHub REST API repository endpoints', 'GitHub API documentation topic page'],
+    ['Find World Bank development indicators API', 'World Bank API population indicator development data', 'World Bank data homepage global statistics'],
+    ['Find Crossref scholarly metadata API documentation', 'Crossref REST API retrieve metadata documentation', 'Crossref general retrieval homepage'],
+    ['Find WHO global health observatory indicator data', 'WHO GHO health indicators data API', 'WHO GHO landing page overview'],
+  ])('ranks the specifically relevant route higher using candidate context', (goal, relevant, generic) => {
+    const candidates = [
+      { url: 'https://publisher.test/generic', route_type: 'developer_docs', publisher_match: 'same_site', verification: 'publisher_linked', machine_readable: false, auth: 'unknown', score: 0, reasons: [], rankingText: generic },
+      { url: 'https://publisher.test/relevant', route_type: 'developer_docs', publisher_match: 'same_site', verification: 'publisher_linked', machine_readable: false, auth: 'unknown', score: 0, reasons: [], rankingText: relevant },
+    ] as (RouteCandidate & { rankingText: string })[];
+    expect(rankCandidates(candidates, [], false, goal)[0]?.url).toContain('/relevant');
+  });
+
+  it('downgrades search-classified downloads when fetched content is ordinary HTML', async () => {
+    const provider = new FakeSearchProvider([{ url: 'https://api.opencorporates.com/', title: 'OpenCorporates API dataset download', description: 'Company search API and dataset download' }]);
+    const fetcher = fixtureFetcher({ [`${root}/`]: { body: '<html>ordinary homepage</html>' }, 'https://api.opencorporates.com/': { body: '<html><title>API docs</title>Company search</html>' } });
+    const result = await discoverSourceRoutes(parseSourceRouteInput({ goal: 'Find OpenCorporates company registry API', domain: 'opencorporates.com' }), { fetcher, searchProvider: provider, validateUrl });
+    const hit = result.routes.find((route) => route.url.includes('api.opencorporates.com'));
+    expect(hit?.route_type).toBe('developer_docs');
+    expect(hit?.machine_readable).toBe(false);
   });
 
   it('records observed authentication friction and still makes at most one fallback query', async () => {

@@ -31,7 +31,7 @@ export const sourceRouteOutputSchema = z.object({
     verification: verificationSchema,
     machine_readable: z.boolean(),
     auth: authSchema,
-    score: z.number().min(0).max(1),
+    score: z.number().min(0).max(1).describe('Bounded route-ranking value combining publisher relationship, route semantics, goal relevance, format preference, and observed authentication. Not a probability or confidence estimate.'),
     reasons: z.array(z.string()).max(8),
   }).strict()).max(10),
   checked: z.object({

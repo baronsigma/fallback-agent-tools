@@ -3,7 +3,7 @@ import { normalizeDomain, type SourceRouteInput } from './contract.js';
 import type { SearchHit, SearchProvider } from './search-provider.js';
 import { getDomain } from 'tldts';
 
-export type RouteCandidate = {
+type InternalCandidate = {
   url: string;
   route_type: 'official_api' | 'openapi' | 'bulk_download' | 'structured_feed' | 'dataset' | 'developer_docs' | 'structured_web' | 'web';
   format?: string;
@@ -13,7 +13,10 @@ export type RouteCandidate = {
   auth: 'none_observed' | 'appears_required' | 'unknown';
   score: number;
   reasons: string[];
+  rankingText?: string;
+  providerScore?: number;
 };
+export type RouteCandidate = Omit<InternalCandidate, 'rankingText' | 'providerScore'>;
 
 export type DiscoveryMetrics = { requests: string[]; pagesFetched: number; searchQueries: number; source: 'direct' | 'search_fallback' | 'none'; providerFailure: boolean };
 export type DiscoveryResult = { routes: RouteCandidate[]; metrics: DiscoveryMetrics; limitations: string[] };
@@ -77,29 +80,30 @@ function extractLinks(html: string, base: string): Array<{ url: string; text: st
   return links;
 }
 
-function linkedCandidate(link: { url: string; text: string; rel?: string; type?: string }, publisherHost: string): RouteCandidate | undefined {
+function linkedCandidate(link: { url: string; text: string; rel?: string; type?: string; title?: string }, publisherHost: string): RouteCandidate | undefined {
   const target = new URL(link.url);
   const relationship = publisherRelationship(target.hostname, publisherHost, true);
   const trusted = relationship !== 'search_discovered';
-  const label = `${link.text} ${link.url} ${link.rel ?? ''} ${link.type ?? ''}`.toLowerCase();
+  const label = `${link.text} ${link.title ?? ''} ${link.url} ${link.rel ?? ''} ${link.type ?? ''}`.toLowerCase();
+  const contextualize = (route: InternalCandidate) => { route.rankingText = label; return route; };
   if (isGenericAsset(target, link.type ?? '')) return undefined;
   const format = /\.csv(?:$|[?#])/.test(target.href) || /text\/csv/.test(link.type ?? '') || /\bcsv\b/.test(label) ? 'csv'
     : /\.json(?:$|[?#])/.test(target.href) || /json/.test(link.type ?? '') || /\bjson\b/.test(label) ? 'json'
     : /\.xml(?:$|[?#])/.test(target.href) || /xml/.test(link.type ?? '') || /\bxml\b/.test(label) ? 'xml'
     : isFeedLabel(`${label} ${target.pathname}`) ? 'rss' : undefined;
-  if (/openapi|swagger/.test(label) && trusted) return candidate(link.url, 'openapi', 'json', relationship, true, ['OpenAPI or Swagger reference was linked from the supplied site.']);
-  if (isFeedLabel(`${label} ${target.pathname}`) || /application\/(?:rss|atom)\+xml/i.test(link.type ?? '')) return candidate(link.url, 'structured_feed', 'rss', relationship, true, ['Feed link was exposed by the supplied site.']);
+  if (/openapi|swagger/.test(label) && trusted) return contextualize(candidate(link.url, 'openapi', 'json', relationship, true, ['OpenAPI or Swagger reference was linked from the supplied site.']));
+  if (isFeedLabel(`${label} ${target.pathname}`) || /application\/(?:rss|atom)\+xml/i.test(link.type ?? '')) return contextualize(candidate(link.url, 'structured_feed', 'rss', relationship, true, ['Feed link was exposed by the supplied site.']));
   if ((/\.csv(?:$|[?#])/.test(target.href) || /text\/csv/.test(link.type ?? '')) && trusted || /dataset|download|bulk|data export/.test(label) && format) {
-    return candidate(link.url, 'bulk_download', format ?? 'csv', relationship, true, ['A downloadable structured file was linked from the supplied site.']);
+    return contextualize(candidate(link.url, 'bulk_download', format ?? 'csv', relationship, true, ['A downloadable structured file was linked from the supplied site.']));
   }
-  if (/\.json(?:$|[?#])/.test(target.href) && trusted && /(?:dataset|download|data|indicator|api)/i.test(label)) return candidate(link.url, 'dataset', format ?? 'json', relationship, true, ['A semantically labelled JSON resource was linked from the supplied site.']);
-  if ((format === 'json' || format === 'xml') && trusted && /(?:dataset|download|data|indicator|records|observations)/i.test(label)) return candidate(link.url, 'dataset', format, relationship, true, ['A labelled structured document was exposed through an alternate/discovery link.']);
-  if (/\/api(?:\/|$)|api reference|developer|data portal|documentation|docs/.test(label)) return candidate(link.url, /\/api(?:\/|$)/.test(target.pathname) && trusted ? 'official_api' : 'developer_docs', 'api', relationship, /\/api(?:\/|$)/.test(target.pathname) && trusted, ['API or developer documentation was linked from the supplied site.']);
-  if (relationship === 'exact_domain' && link.text.length > 10 && !/wp-json|\.json|\.xml|\.csv/i.test(target.pathname)) return candidate(link.url, 'web', 'html', relationship, false, ['Page was linked from the supplied site.']);
+  if (/\.json(?:$|[?#])/.test(target.href) && trusted && /(?:dataset|download|data|indicator|api)/i.test(label)) return contextualize(candidate(link.url, 'dataset', format ?? 'json', relationship, true, ['A semantically labelled JSON resource was linked from the supplied site.']));
+  if ((format === 'json' || format === 'xml') && trusted && /(?:dataset|download|data|indicator|records|observations)/i.test(label)) return contextualize(candidate(link.url, 'dataset', format, relationship, true, ['A labelled structured document was exposed through an alternate/discovery link.']));
+  if (/\/api(?:\/|$)|api reference|developer|data portal|documentation|docs/.test(label)) return contextualize(candidate(link.url, /\/api(?:\/|$)/.test(target.pathname) && trusted ? 'official_api' : 'developer_docs', 'api', relationship, /\/api(?:\/|$)/.test(target.pathname) && trusted, ['API or developer documentation was linked from the supplied site.']));
+  if (relationship === 'exact_domain' && link.text.length > 10 && !/wp-json|\.json|\.xml|\.csv/i.test(target.pathname)) return contextualize(candidate(link.url, 'web', 'html', relationship, false, ['Page was linked from the supplied site.']));
   return undefined;
 }
 
-function candidate(url: string, route_type: RouteCandidate['route_type'], format: string | undefined, publisher_match: RouteCandidate['publisher_match'], machine_readable: boolean, reasons: string[]): RouteCandidate {
+function candidate(url: string, route_type: RouteCandidate['route_type'], format: string | undefined, publisher_match: RouteCandidate['publisher_match'], machine_readable: boolean, reasons: string[]): InternalCandidate {
   return { url, route_type, ...(format ? { format } : {}), publisher_match, verification: publisher_match === 'search_discovered' ? 'search_only' : 'publisher_linked', machine_readable, auth: 'unknown', score: 0, reasons };
 }
 
@@ -113,6 +117,13 @@ function classifyProbe(url: string, body: string, contentType: string, publisher
     return undefined;
   }
   if (/wordpress/i.test(body.slice(0, 2000)) || /(?:^|\/)wp-json(?:\/|$)/i.test(path) && !/openapi|swagger/i.test(body.slice(0, 2000))) return undefined;
+  if (status >= 200 && status < 400 && /html/i.test(contentType)) {
+    if (/openapi|swagger/i.test(path) && /api documentation|swagger ui|redoc/i.test(body.slice(0, 5000))) {
+      const docs = candidate(url, /\/api(?:\/|$)/i.test(path) ? 'official_api' : 'developer_docs', 'api', publisherMatch, false, [reason, 'Fetched HTML presents API documentation.']);
+      docs.verification = 'content_verified'; return docs;
+    }
+    return undefined;
+  }
   const bodyLooksLikeOpenApi = /json/.test(contentType) && /"(?:openapi|swagger)"\s*:/i.test(body.slice(0, 2000))
     || /yaml|yml/.test(contentType) && /^(?:openapi|swagger)\s*:/im.test(body.slice(0, 2000));
   if (bodyLooksLikeOpenApi || /(?:openapi|swagger)/i.test(contentType) && status >= 200 && status < 300) {
@@ -136,16 +147,42 @@ function authFromStatus(status: number): RouteCandidate['auth'] {
   return status === 401 || status === 403 ? 'appears_required' : status >= 200 && status < 400 ? 'none_observed' : 'unknown';
 }
 
+function shouldSearch(routes: InternalCandidate[], goal: string): boolean {
+  const best = routes[0];
+  if (!best || best.auth === 'appears_required' || best.publisher_match === 'search_discovered') return true;
+  if (best.route_type === 'openapi' && best.machine_readable && best.verification === 'content_verified') return false;
+  if (best.route_type === 'openapi' && best.machine_readable && best.verification === 'publisher_linked') return false;
+  if (best.route_type === 'openapi' && best.machine_readable && best.verification === 'content_verified') return false;
+  const relevance = goalRelevance(goal, `${best.url} ${best.rankingText ?? ''} ${best.reasons.join(' ')}`);
+  const provenanceStrength = best.publisher_match === 'exact_domain' ? 1 : best.publisher_match === 'same_site' ? 0.9 : 0.68;
+  const semanticStrength = relevance;
+  const routeSemantics = ['official_api', 'openapi', 'dataset', 'bulk_download', 'structured_feed', 'developer_docs'].includes(best.route_type);
+  const evidenceStrength = best.verification === 'content_verified' || best.verification === 'publisher_linked';
+  const cleanDirectType = ['official_api', 'openapi', 'dataset', 'bulk_download', 'structured_feed'].includes(best.route_type)
+    || best.route_type === 'developer_docs' && /api|documentation|docs|reference/i.test(`${best.rankingText ?? ''} ${best.url}`);
+  return !(routeSemantics && cleanDirectType && evidenceStrength && provenanceStrength >= 0.68 && semanticStrength >= 0.12);
+}
+
+function searchQuery(goal: string, publisher: string | undefined, formats: string[] = []): string {
+  const subject = `${goal} ${publisher ?? ''}`.trim();
+  if (formats.some((format) => ['api', 'json'].includes(format))) return `${subject} API documentation JSON`;
+  if (formats.some((format) => ['bulk_download', 'csv'].includes(format))) return `${subject} dataset download CSV`;
+  if (formats.includes('rss')) return `${subject} feed RSS Atom`;
+  if (formats.includes('html')) return `${subject} documentation`;
+  return `${subject} data access documentation`;
+}
+
 const STOP_WORDS = new Set(['a', 'an', 'and', 'are', 'as', 'at', 'by', 'for', 'from', 'find', 'get', 'in', 'into', 'of', 'on', 'or', 'the', 'to', 'with', 'data', 'route', 'source']);
 function goalTokens(goal: string): string[] { return goal.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter((token) => token.length > 2 && !STOP_WORDS.has(token)); }
-function goalRelevance(goal: string, context: string): number {
+export function goalRelevance(goal: string, context: string): number {
   const wanted = [...new Set(goalTokens(goal))];
   if (!wanted.length) return 0;
   const available = new Set(goalTokens(context));
+  for (const token of wanted) if (token.endsWith('s')) available.add(token.slice(0, -1));
   return wanted.filter((token) => available.has(token)).length / wanted.length;
 }
 
-export function rankCandidates(candidates: RouteCandidate[], preferred: string[] = [], requireOfficial = false, goal = ''): RouteCandidate[] {
+export function rankCandidates(candidates: InternalCandidate[], preferred: string[] = [], requireOfficial = false, goal = ''): InternalCandidate[] {
   const typeBase: Record<RouteCandidate['route_type'], number> = {
     official_api: 0.94, openapi: 0.90, bulk_download: 0.87, dataset: 0.86,
     structured_feed: 0.84, developer_docs: 0.68, structured_web: 0.62, web: 0.42,
@@ -161,11 +198,12 @@ export function rankCandidates(candidates: RouteCandidate[], preferred: string[]
     if (route.auth === 'none_observed') score += 0.02;
     if (route.format && preferred.some((format) => format === route.format || (format === 'api' && ['official_api', 'openapi'].includes(route.route_type)) || (format === 'bulk_download' && ['bulk_download', 'dataset'].includes(route.route_type)))) score += 0.12;
     if (requireOfficial && route.publisher_match === 'search_discovered') score -= 0.25;
-    const relevance = goalRelevance(goal, `${route.url} ${route.reasons.join(' ')}`);
-    score += relevance * 0.18;
+    const relevance = goalRelevance(goal, `${route.url} ${route.rankingText ?? ''}`);
+    score += relevance * 0.24;
+    if (route.providerScore !== undefined) score += route.providerScore * 0.025;
     if (route.verification === 'search_only' && relevance < 0.15) score -= 0.20;
     const sortScore = score;
-    score = Math.max(0, Math.min(1, Math.round(score * 100) / 100));
+    score = Math.max(0, Math.min(1, Math.round((score / (score + 1)) * 100) / 100));
     return { route: { ...route, score }, sortScore };
   }).sort((a, b) => b.sortScore - a.sortScore || a.route.url.localeCompare(b.route.url)).map(({ route }) => route);
 }
@@ -174,7 +212,7 @@ function sitemapLocations(body: string, base: string): string[] {
   return [...body.matchAll(/<loc>\s*([^<]+)\s*<\/loc>/gi)].map((match) => absoluteHttpUrl(match[1] ?? '', base)).filter((url): url is string => Boolean(url)).slice(0, 30);
 }
 
-function addSitemapCandidates(body: string, sitemapUrl: string, siteHost: string, suppliedHost: string, candidates: RouteCandidate[]): void {
+function addSitemapCandidates(body: string, sitemapUrl: string, siteHost: string, suppliedHost: string, candidates: InternalCandidate[]): void {
   if (/<(?:sitemapindex|urlset)\b/i.test(body)) return;
   for (const location of sitemapLocations(body, sitemapUrl)) {
     const loc = new URL(location);
@@ -188,18 +226,19 @@ function addSitemapCandidates(body: string, sitemapUrl: string, siteHost: string
   }
 }
 
-function searchHitCandidate(hit: SearchHit, domain: string | undefined): RouteCandidate {
+function searchHitCandidate(hit: SearchHit, domain: string | undefined): InternalCandidate {
   const url = new URL(hit.url);
   const label = `${hit.title} ${hit.description} ${url.pathname}`.toLowerCase();
   const match = domain ? publisherRelationship(url.hostname, domain) : 'search_discovered';
   const relationshipReason = match === 'exact_domain' || match === 'same_site' ? 'Search result is on the supplied publisher site family; page content was not fetched.' : 'Search result hostname was observed, but its relationship to an official publisher was not independently verified.';
-  if (isGenericAsset(url)) return candidate(hit.url, 'web', 'html', match, false, ['Search result points to a generic discovery or static asset, not a goal route.', relationshipReason]);
+  const contextualize = (route: InternalCandidate) => { route.rankingText = `${hit.title} ${hit.description} ${url.href}`; if (hit.providerScore !== undefined) route.providerScore = hit.providerScore; return route; };
+  if (isGenericAsset(url)) return contextualize(candidate(hit.url, 'web', 'html', match, false, ['Search result points to a generic discovery or static asset, not a goal route.', relationshipReason]));
   const verifiedPublisher = match === 'exact_domain' || match === 'same_site';
-  if (verifiedPublisher && /openapi|swagger/.test(label)) return candidate(hit.url, 'openapi', 'json', match, false, ['Search result suggests an OpenAPI/Swagger document; content was not fetched.', relationshipReason]);
-  if (verifiedPublisher && (/\.csv(?:$|[?#])/.test(url.href) || /bulk download|dataset|csv/.test(label))) return candidate(hit.url, 'bulk_download', 'csv', match, false, ['Search result points to a possible structured download; content was not fetched.', relationshipReason]);
-  if (isFeedLabel(label)) return candidate(hit.url, 'structured_feed', 'rss', match, false, ['Search result identifies a possible feed; content was not fetched.', relationshipReason]);
-  if (/api|developer|documentation|docs/.test(label)) return candidate(hit.url, 'developer_docs', 'api', match, false, ['Search result describes API or developer documentation.', relationshipReason]);
-  return candidate(hit.url, 'web', 'html', match, false, ['Found by the single bounded external search query.', relationshipReason]);
+  if (verifiedPublisher && /openapi|swagger/.test(label)) return contextualize(candidate(hit.url, 'openapi', 'json', match, false, ['Search result suggests an OpenAPI/Swagger document; content was not fetched.', relationshipReason]));
+  if (verifiedPublisher && (/\.csv(?:$|[?#])/.test(url.href) || /bulk download|dataset|csv/.test(label))) return contextualize(candidate(hit.url, 'bulk_download', 'csv', match, false, ['Search result points to a possible structured download; content was not fetched.', relationshipReason]));
+  if (isFeedLabel(label)) return contextualize(candidate(hit.url, 'structured_feed', 'rss', match, false, ['Search result identifies a possible feed; content was not fetched.', relationshipReason]));
+  if (/api|developer|documentation|docs/.test(label)) return contextualize(candidate(hit.url, 'developer_docs', 'api', match, false, ['Search result describes API or developer documentation.', relationshipReason]));
+  return contextualize(candidate(hit.url, 'web', 'html', match, false, ['Found by the single bounded external search query.', relationshipReason]));
 }
 
 async function readIfFetched(fetcher: SafeFetcher, url: string, requests: string[], budget: { pagesFetched: number }, startedAt: number, deadlineAt = startedAt + NETWORK_LIMITS.totalTimeoutMs, requestCap: number = NETWORK_LIMITS.maxHttpRequests): Promise<SafeFetchResult | undefined> {
@@ -223,7 +262,7 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
   const requests: string[] = [];
   const counters = { pagesFetched: 0, searchQueries: 0 };
   let providerFailure = false;
-  const candidates: RouteCandidate[] = [];
+  const candidates: InternalCandidate[] = [];
   const validatedCandidateUrls = new Set<string>();
   const limitations: string[] = [];
   const phaseDeadline = () => startedAt + (options.searchProvider ? DIRECT_BUDGET_WITH_SEARCH : NETWORK_LIMITS.totalTimeoutMs);
@@ -281,19 +320,22 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
           validatedCandidateUrls.add(linkedOpenApi.url);
           const linkedSpec = await readIfFetched(fetcher, linkedOpenApi.url, requests, counters, startedAt, phaseDeadline(), options.searchProvider ? DIRECT_REQUEST_CAP_WITH_SEARCH : NETWORK_LIMITS.maxHttpRequests);
           const candidateIndex = candidates.findIndex((route) => route.url === linkedOpenApi.url && route.route_type === 'openapi');
-          if (linkedSpec) {
+          const original = candidateIndex >= 0 ? candidates[candidateIndex] : undefined;
+      if (linkedSpec) {
             const finalHost = new URL(linkedSpec.url).hostname.toLowerCase();
             const publisherMatch = publisherRelationship(finalHost, suppliedHost ?? finalHost, true);
             const verifiedSpec = classifyProbe(linkedSpec.url, linkedSpec.body, String(linkedSpec.headers['content-type'] ?? ''), publisherMatch, 'Fetched an OpenAPI reference linked from the supplied site.', linkedSpec.status);
             if (candidateIndex >= 0) candidates.splice(candidateIndex, 1);
             if (verifiedSpec?.route_type === 'openapi') {
-              verifiedSpec.verification = 'content_verified';
+              rootAlreadyExposesOpenApi = verifiedSpec.auth !== 'appears_required';
+              if (original?.rankingText !== undefined) (verifiedSpec as InternalCandidate).rankingText = original.rankingText;
               verifiedSpec.auth = authFromStatus(linkedSpec.status);
               candidates.push(verifiedSpec);
               validatedCandidateUrls.add(verifiedSpec.url);
               rootAlreadyExposesOpenApi = verifiedSpec.auth !== 'appears_required';
             } else {
               const downgraded = candidate(linkedSpec.url, 'developer_docs', 'api', publisherMatch, false, ['The site linked a page labelled OpenAPI, but the fetched response did not confirm an OpenAPI document.']);
+              if (original?.rankingText !== undefined) downgraded.rankingText = original.rankingText;
               downgraded.auth = authFromStatus(linkedSpec.status);
               candidates.push(downgraded);
               validatedCandidateUrls.add(downgraded.url);
@@ -325,6 +367,19 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
       const candidateFromResponse = result.status >= 200 && result.status < 400 || result.status === 401 || result.status === 403
         ? classifyProbe(result.url, result.body, contentType, responsePublisherMatch, `Discovered via standard ${path} endpoint probe.`, result.status) : undefined;
       if (candidateFromResponse) { candidateFromResponse.auth = authFromStatus(result.status); candidates.push(candidateFromResponse); }
+      else {
+        const linkedIndex = candidates.findIndex((item) => item.url === result.url && item.verification === 'publisher_linked');
+        if (linkedIndex >= 0 && /html/i.test(contentType)) {
+          const previous = candidates[linkedIndex];
+          if (previous) {
+            const downgraded = candidate(result.url, /(?:api|developer|docs)/i.test(`${previous.rankingText ?? ''} ${result.url}`) ? 'developer_docs' : 'web', 'html', previous.publisher_match, false, ['Publisher-linked URL was fetched and returned HTML; provisional structured classification was downgraded.']);
+            if (previous.rankingText !== undefined) downgraded.rankingText = previous.rankingText;
+            downgraded.verification = 'content_verified';
+            downgraded.auth = authFromStatus(result.status);
+            candidates.splice(linkedIndex, 1, downgraded);
+          }
+        }
+      }
       const fetchedPath = new URL(result.url).pathname;
       if (/sitemap/i.test(fetchedPath)) { addSitemapCandidates(result.body, result.url, root.hostname, suppliedHost ?? root.hostname, candidates); continue; }
       if (/robots\.txt/i.test(fetchedPath)) {
@@ -357,7 +412,7 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
     }
   }
 
-  const publicCandidates: RouteCandidate[] = [];
+  const publicCandidates: InternalCandidate[] = [];
   const deduped = dedupeCandidates(candidates).slice(0, 30);
   if (candidates.length > 30) limitations.push('Candidate inspection was capped to keep validation work bounded.');
   for (const route of deduped) {
@@ -372,18 +427,24 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
     } catch { limitations.push('A discovered candidate was omitted because its URL did not pass public-address safety checks.'); }
   }
   let ranked = rankCandidates(publicCandidates, input.preferred_formats ?? [], input.require_official, input.goal);
-  for (const route of ranked) if (validatedCandidateUrls.has(route.url) || requests.includes(route.url)) route.verification = 'content_verified';
-  const useful = ranked.some((route) => route.machine_readable && route.verification === 'content_verified' && !['structured_web', 'web'].includes(route.route_type)
-    && route.auth !== 'appears_required' && route.score >= 0.75 && route.publisher_match !== 'search_discovered');
+  for (const route of ranked) {
+    const fetched = publicCandidates.find((item) => item.url === route.url && item.verification === 'content_verified');
+    if (fetched) route.verification = 'content_verified';
+  }
   let source: DiscoveryMetrics['source'] = ranked.length ? 'direct' : 'none';
-  if (!useful && options.searchProvider) {
-    const query = input.domain ? `${input.goal} ${input.domain} official API data download` : `${input.goal} official API data download dataset`;
+  if (shouldSearch(ranked, input.goal) && options.searchProvider) {
+    const query = searchQuery(input.goal, input.domain, input.preferred_formats);
     try {
       const remaining = NETWORK_LIMITS.totalTimeoutMs - (Date.now() - startedAt);
       if (remaining <= 0) throw new Error('Total execution time limit reached.');
       counters.searchQueries = 1;
       source = 'search_fallback';
-      const hits = await options.searchProvider.search(query, { timeoutMs: Math.min(remaining, NETWORK_LIMITS.requestTimeoutMs) });
+      const searchOptions = {
+        timeoutMs: Math.min(remaining, NETWORK_LIMITS.requestTimeoutMs),
+        ...(input.domain && input.require_official ? { restrictDomains: [getDomain(input.domain) ?? input.domain] } : {}),
+        ...(input.domain && !input.require_official ? { preferredDomains: [getDomain(input.domain) ?? input.domain] } : {}),
+      };
+      const hits = await options.searchProvider.search(query, searchOptions);
       const safeHits: SearchHit[] = [];
       for (const hit of hits.slice(0, 10)) {
         try {
@@ -398,7 +459,7 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
       else if (input.require_official && eligibleHits.length !== safeHits.length) limitations.push('Search results without a directly observed match to the supplied domain were excluded because official sources were required.');
       const searchCandidates = eligibleHits.map((hit) => searchHitCandidate(hit, suppliedHost));
       let validationAllowance = Math.max(0, NETWORK_LIMITS.maxHttpRequests - requests.length);
-      for (const route of searchCandidates.slice().sort((a, b) => goalRelevance(input.goal, `${b.url} ${b.reasons.join(' ')}`) - goalRelevance(input.goal, `${a.url} ${a.reasons.join(' ')}`)).slice(0, 2)) {
+      for (const route of searchCandidates.slice().sort((a, b) => (goalRelevance(input.goal, `${b.url} ${b.rankingText ?? ''}`) + (b.providerScore ?? 0) * 0.05) - (goalRelevance(input.goal, `${a.url} ${a.rankingText ?? ''}`) + (a.providerScore ?? 0) * 0.05)).slice(0, 1)) {
         if (validationAllowance <= 0) break;
         try {
           const remaining = NETWORK_LIMITS.totalTimeoutMs - (Date.now() - startedAt);
@@ -408,7 +469,15 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
           validationAllowance = Math.max(0, NETWORK_LIMITS.maxHttpRequests - requests.length);
           if (fetched) {
             const verified = classifyProbe(fetched.url, fetched.body, String(fetched.headers['content-type'] ?? ''), route.publisher_match, 'Search result was fetched once for route validation.', fetched.status);
-            if (verified) { verified.auth = authFromStatus(fetched.status); searchCandidates.splice(searchCandidates.indexOf(route), 1, verified); }
+            const replacement = verified ?? (fetched.status >= 200 && fetched.status < 400 && /html/i.test(String(fetched.headers['content-type'] ?? ''))
+              ? candidate(fetched.url, /(?:api|developer|docs)/i.test(`${route.rankingText ?? ''} ${fetched.url}`) ? 'developer_docs' : 'web', 'html', route.publisher_match, false, ['Search result was fetched and returned an HTML page; its snippet classification was downgraded.'])
+              : undefined);
+            if (replacement) {
+              if (route.rankingText !== undefined) (replacement as InternalCandidate).rankingText = route.rankingText;
+              if (route.providerScore !== undefined) (replacement as InternalCandidate).providerScore = route.providerScore;
+              replacement.auth = authFromStatus(fetched.status);
+              searchCandidates.splice(searchCandidates.indexOf(route), 1, replacement);
+            }
           }
         } catch { /* keep the candidate as search-only when one-fetch validation is unavailable */ }
       }
@@ -423,7 +492,10 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
   if (!input.domain && !input.start_url && ranked.length === 0 && !options.searchProvider) limitations.push('Provide a domain or configure external search to discover candidate routes.');
   if (!ranked.length) limitations.push('No suitable route was found within checked scope; this does not establish that no route exists.');
 
-  const routes = ranked.slice(0, Math.min(input.max_candidates, NETWORK_LIMITS.maxRoutes));
+  const routes = ranked.slice(0, Math.min(input.max_candidates, NETWORK_LIMITS.maxRoutes)).map((route) => {
+    const publicRoute: RouteCandidate = { url: route.url, route_type: route.route_type, ...(route.format ? { format: route.format } : {}), publisher_match: route.publisher_match, verification: route.verification, machine_readable: route.machine_readable, auth: route.auth, score: route.score, reasons: route.reasons };
+    return publicRoute;
+  });
   return {
     routes,
     metrics: { requests, pagesFetched: counters.pagesFetched, searchQueries: counters.searchQueries, source, providerFailure },
@@ -431,7 +503,7 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
   };
 }
 
-function dedupeCandidates(candidates: RouteCandidate[]): RouteCandidate[] {
+function dedupeCandidates(candidates: InternalCandidate[]): InternalCandidate[] {
   const byUrl = new Map<string, RouteCandidate>();
   for (const current of candidates) {
     const key = current.url.replace(/#.*$/, '');
