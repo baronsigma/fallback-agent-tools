@@ -18,7 +18,7 @@ Fallback does not replace agent reasoning. Each service should answer a narrow o
 
 These values are canonicalized in `src/core/registry.ts`. `stop_search` and `error_route` have no behavioral implementation yet.
 
-`source_route` inspects a supplied domain's root, a short list of standard discovery endpoints, linked OpenAPI/feed/download references, `robots.txt` sitemap declarations, `llms.txt`, and sitemap entries. When no sufficiently useful direct route is found, it may use at most one configured Brave Search API request. It does not use LLM inference or claim that an undiscovered route does not exist.
+`source_route` inspects a supplied domain's root, a short list of standard discovery endpoints, linked OpenAPI/feed/download references, `robots.txt` sitemap declarations, `llms.txt`, and sitemap entries. When no sufficiently useful direct route is found, it may use at most one configured external search request. Tavily is the preferred MVP provider; Brave remains supported. External search is optional. It does not use LLM inference or claim that an undiscovered route does not exist.
 
 ## Access model
 

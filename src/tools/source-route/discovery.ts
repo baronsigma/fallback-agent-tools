@@ -13,7 +13,7 @@ export type RouteCandidate = {
   reasons: string[];
 };
 
-export type DiscoveryMetrics = { requests: string[]; pagesFetched: number; searchQueries: number; source: 'direct' | 'search_fallback' | 'none' };
+export type DiscoveryMetrics = { requests: string[]; pagesFetched: number; searchQueries: number; source: 'direct' | 'search_fallback' | 'none'; providerFailure: boolean };
 export type DiscoveryResult = { routes: RouteCandidate[]; metrics: DiscoveryMetrics; limitations: string[] };
 export type SourceRouteDiscoveryOptions = {
   fetcher?: SafeFetcher;
@@ -169,6 +169,7 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
   const validateUrl = options.validateUrl ?? validatePublicHttpUrl;
   const requests: string[] = [];
   const counters = { pagesFetched: 0, searchQueries: 0 };
+  let providerFailure = false;
   const candidates: RouteCandidate[] = [];
   const validatedCandidateUrls = new Set<string>();
   const limitations: string[] = [];
@@ -186,7 +187,7 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
       if (validationTime <= 0) throw new Error('Total execution time limit reached.');
       await withTimeout(validateUrl(root.toString()), validationTime);
       const result = await readIfFetched(fetcher, root.toString(), requests, counters, startedAt);
-      if (result) {
+    if (result) {
         const finalUrl = new URL(result.url);
         root = finalUrl;
         linked = extractLinks(result.body, finalUrl.toString()).slice(0, 100);
@@ -203,9 +204,9 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
           structuredPage.auth = authFromStatus(result.status);
           candidates.push(structuredPage);
         }
-      } else limitations.push('The supplied domain could not be fetched within the network safety and request limits.');
+    } else limitations.push('The supplied domain could not be fetched within the network safety and request limits.');
     } catch (error) {
-      limitations.push(error instanceof Error ? `Domain fetch was blocked or failed: ${error.message}` : 'Domain fetch was blocked or failed.');
+    limitations.push(error instanceof Error ? `Domain fetch was blocked or failed: ${error.message}` : 'Domain fetch was blocked or failed.');
     }
 
     const paths = new Set<string>(['/llms.txt', '/robots.txt']);
@@ -294,7 +295,9 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
         for (const line of result.body.split(/\r?\n/).slice(0, 200)) {
           const match = line.match(/https?:\/\/[^\s)\]]+/i);
           if (!match) continue;
-          const found = linkedCandidate({ url: match[0], text: line.slice(0, 240) }, suppliedHost ?? root.hostname);
+          const resourceUrl = match[0].replace(/["'<>.,;]+$/, '');
+          try { new URL(resourceUrl); } catch { continue; }
+          const found = linkedCandidate({ url: resourceUrl, text: line.slice(0, 240) }, suppliedHost ?? root.hostname);
           if (found) { found.reasons.unshift("Resource reference was listed in the site's llms.txt."); candidates.push(found); }
         }
       }
@@ -307,12 +310,13 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
   for (const route of deduped) {
     if (validatedCandidateUrls.has(route.url)) { publicCandidates.push(route); continue; }
     try {
+      const candidateUrl = new URL(route.url);
+      if (!['http:', 'https:'].includes(candidateUrl.protocol) || candidateUrl.username || candidateUrl.password) continue;
       const remaining = NETWORK_LIMITS.totalTimeoutMs - (Date.now() - startedAt);
       if (remaining <= 0) throw new Error('Deadline reached.');
       await withTimeout(validateUrl(route.url), remaining);
       publicCandidates.push(route);
-    }
-    catch { limitations.push('A discovered candidate was omitted because its URL did not pass public-address safety checks.'); }
+    } catch { limitations.push('A discovered candidate was omitted because its URL did not pass public-address safety checks.'); }
   }
   let ranked = rankCandidates(publicCandidates, input.preferred_formats ?? [], input.require_official);
   const useful = ranked.some((route) => route.machine_readable && !['structured_web', 'web'].includes(route.route_type)
@@ -340,7 +344,8 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
       else if (input.require_official && eligibleHits.length !== safeHits.length) limitations.push('Search results without a directly observed match to the supplied domain were excluded because official sources were required.');
       ranked = rankCandidates(dedupeCandidates([...ranked, ...eligibleHits.map((hit) => searchHitCandidate(hit, suppliedHost))]), input.preferred_formats ?? [], input.require_official);
     } catch {
-      limitations.push('The single external search attempt failed or timed out.');
+      providerFailure = true;
+      limitations.push('External search fallback failed or was unavailable.');
     }
   }
   if (!options.searchProvider) limitations.push('External search fallback was unavailable because no search provider is configured; deterministic discovery was used.');
@@ -351,7 +356,7 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
   const routes = ranked.slice(0, Math.min(input.max_candidates, NETWORK_LIMITS.maxRoutes));
   return {
     routes,
-    metrics: { requests, pagesFetched: counters.pagesFetched, searchQueries: counters.searchQueries, source },
+    metrics: { requests, pagesFetched: counters.pagesFetched, searchQueries: counters.searchQueries, source, providerFailure },
     limitations: [...new Set(limitations)],
   };
 }

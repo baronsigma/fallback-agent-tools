@@ -1,10 +1,11 @@
 export type SearchHit = { url: string; title: string; description: string };
 
 export interface SearchProvider {
+  readonly id: 'tavily' | 'brave' | 'fake';
   search(query: string, options: { timeoutMs: number }): Promise<SearchHit[]>;
 }
 
-async function readBraveBody(response: Response, maxBytes: number): Promise<string> {
+async function readBoundedBody(response: Response, maxBytes: number, provider: string): Promise<string> {
   if (!response.body) return '';
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -15,14 +16,52 @@ async function readBraveBody(response: Response, maxBytes: number): Promise<stri
     size += value.byteLength;
     if (size > maxBytes) {
       await reader.cancel();
-      throw new Error('Brave Search response exceeded the size limit.');
+      throw new Error(`${provider} Search response exceeded the size limit.`);
     }
     chunks.push(value);
   }
   return new TextDecoder().decode(Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))));
 }
 
+function mappedHits(value: unknown, provider: string, resultField: string, descriptionField: string): SearchHit[] {
+  if (!value || typeof value !== 'object') throw new Error(`${provider} Search returned malformed JSON.`);
+  const rows = (value as Record<string, unknown>)[resultField];
+    if (!Array.isArray(rows)) throw new Error(`${provider} Search response is missing ${provider === 'Brave' ? 'web ' : ''}results.`);
+  return rows.flatMap((entry): SearchHit[] => {
+    if (!entry || typeof entry !== 'object') return [];
+    const hit = entry as Record<string, unknown>;
+    if (typeof hit['url'] !== 'string' || typeof hit['title'] !== 'string' || typeof hit[descriptionField] !== 'string') return [];
+    try {
+      const url = new URL(hit['url']);
+      if (!['http:', 'https:'].includes(url.protocol)) return [];
+    } catch { return []; }
+    return [{ url: hit['url'], title: hit['title'].slice(0, 500), description: (hit[descriptionField] as string).slice(0, 2000) }];
+  }).slice(0, 10);
+}
+
+export class TavilySearchProvider implements SearchProvider {
+  readonly id = 'tavily' as const;
+  constructor(private readonly apiKey: string, private readonly fetchImpl: typeof fetch = fetch) {
+    if (!apiKey.trim()) throw new Error('Tavily API key is required.');
+  }
+
+  async search(query: string, options: { timeoutMs: number }): Promise<SearchHit[]> {
+    const response = await this.fetchImpl('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${this.apiKey}`, 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ query, search_depth: 'basic', topic: 'general', max_results: 10, include_answer: false, include_raw_content: false, include_images: false }),
+      signal: AbortSignal.timeout(options.timeoutMs), redirect: 'error',
+    });
+    if (!response.ok) throw new Error(`Tavily Search returned HTTP ${response.status}.`);
+    const text = await readBoundedBody(response, 1_048_576, 'Tavily');
+    let parsed: unknown;
+    try { parsed = JSON.parse(text); } catch { throw new Error('Tavily Search returned malformed JSON.'); }
+    return mappedHits(parsed, 'Tavily', 'results', 'content');
+  }
+}
+
 export class BraveSearchProvider implements SearchProvider {
+  readonly id = 'brave' as const;
   constructor(private readonly apiKey: string, private readonly fetchImpl: typeof fetch = fetch) {
     if (!apiKey.trim()) throw new Error('Brave Search API key is required.');
   }
@@ -37,21 +76,16 @@ export class BraveSearchProvider implements SearchProvider {
       redirect: 'error',
     });
     if (!response.ok) throw new Error(`Brave Search returned HTTP ${response.status}.`);
-    const text = await readBraveBody(response, 1_048_576);
-    const parsed: unknown = JSON.parse(text);
+    const text = await readBoundedBody(response, 1_048_576, 'Brave');
+    let parsed: unknown;
+    try { parsed = JSON.parse(text); } catch { throw new Error('Brave Search returned malformed JSON.'); }
     if (!parsed || typeof parsed !== 'object') throw new Error('Brave Search returned malformed JSON.');
-    const web = (parsed as { web?: { results?: unknown } }).web;
-    if (!Array.isArray(web?.results)) throw new Error('Brave Search response is missing web results.');
-    return web.results.flatMap((entry): SearchHit[] => {
-      if (!entry || typeof entry !== 'object') return [];
-      const hit = entry as Record<string, unknown>;
-      if (typeof hit['url'] !== 'string' || typeof hit['title'] !== 'string' || typeof hit['description'] !== 'string') return [];
-      return [{ url: hit['url'], title: hit['title'], description: hit['description'] }];
-    }).slice(0, 10);
+    return mappedHits({ results: (parsed as { web?: { results?: unknown } }).web?.results }, 'Brave', 'results', 'description');
   }
 }
 
 export class FakeSearchProvider implements SearchProvider {
+  readonly id = 'fake' as const;
   calls: string[] = [];
   constructor(private readonly hits: SearchHit[] = [], private readonly error?: Error) {}
   async search(query: string): Promise<SearchHit[]> {
@@ -62,6 +96,20 @@ export class FakeSearchProvider implements SearchProvider {
 }
 
 export function configuredSearchProvider(env: NodeJS.ProcessEnv = process.env): SearchProvider | undefined {
-  const apiKey = env['BRAVE_SEARCH_API_KEY']?.trim();
-  return apiKey ? new BraveSearchProvider(apiKey) : undefined;
+  const selection = env['SEARCH_PROVIDER']?.trim().toLowerCase();
+  if (selection && !['tavily', 'brave', 'none'].includes(selection)) throw new Error('SEARCH_PROVIDER must be one of: tavily, brave, none.');
+  if (selection === 'none') return undefined;
+  const tavilyKey = env['TAVILY_API_KEY']?.trim();
+  const braveKey = env['BRAVE_SEARCH_API_KEY']?.trim();
+  if (selection === 'tavily') {
+    if (!tavilyKey) throw new Error('SEARCH_PROVIDER=tavily requires TAVILY_API_KEY.');
+    return new TavilySearchProvider(tavilyKey);
+  }
+  if (selection === 'brave') {
+    if (!braveKey) throw new Error('SEARCH_PROVIDER=brave requires BRAVE_SEARCH_API_KEY.');
+    return new BraveSearchProvider(braveKey);
+  }
+  if (tavilyKey) return new TavilySearchProvider(tavilyKey);
+  if (braveKey) return new BraveSearchProvider(braveKey);
+  return undefined;
 }

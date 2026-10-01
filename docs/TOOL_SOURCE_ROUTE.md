@@ -12,7 +12,7 @@ The response has `status` (`routes_found`, `no_suitable_route_found`, or `insuff
 2. Inspect response content type, HTML anchors and alternate links; collect API/OpenAPI, feed, JSON/CSV, developer/data, and sitemap references.
 3. Probe `/llms.txt`, `/robots.txt`, `/sitemap.xml`, `/openapi.json`, `/.well-known/openapi.json`, and `/swagger.json` (up to the global eight-request cap). Follow at most two sitemap declarations from robots and inspect at most 30 sitemap locations. Do not spider pages.
 4. Validate discovered route URLs against public-address safety checks and deduplicate.
-5. If there is no machine-readable non-search route scoring at least 0.75, make at most one configured Brave Search API query. With no configured provider, return deterministic findings and say search was unavailable.
+5. If there is no machine-readable non-search route scoring at least 0.75, make at most one query through the configured provider. Tavily is preferred for the MVP; Brave remains supported. With no configured provider, return deterministic findings and say external search was unavailable.
 
 No LLM or model inference is used.
 
@@ -26,12 +26,17 @@ Scores encode explicit observed route type, host relationship, content type, and
 
 - At most 8 direct-discovery HTTP requests per execution, including redirects.
 - At most 1 additional paid search HTTP request.
+- One selected provider per call; Tavily and Brave are never chained.
 - At most 5 seconds per outbound request and 12 seconds total.
 - At most 1 MiB read per HTTP response.
 - At most 3 redirects per request; every destination is revalidated.
 - At most 10 returned routes, with 5 by default.
 - At most 100 homepage links, 30 candidates for public-address validation, and 30 sitemap entries inspected.
 
-## Cost and remaining product uncertainty
+## Provider configuration and cost
 
-Direct discovery has $0 in third-party search spend; hosting and outbound request costs depend on deployment and have not been measured against a live host. A Brave Search API fallback is priced by Brave at $5 per 1,000 Search requests (currently $0.005 per query); one tool call can therefore add at most $0.005 in direct search-provider spend, before hosting. This is a significant fraction of the $0.02 beta price, so measure fallback frequency and revisit economics before charging.
+Set `SEARCH_PROVIDER=tavily`, `brave`, or `none`. When omitted, a Tavily key takes precedence, then a Brave key; without either key the tool starts in deterministic-only mode. Provider credentials are `TAVILY_API_KEY` and `BRAVE_SEARCH_API_KEY`. Tavily is preferred initially because its current free allowance makes early validation inexpensive. Free-tier availability and provider pricing can change; these are business assumptions, not protocol guarantees. Provider cost belongs in evaluation assumptions, not core runtime logic. Direct discovery has no third-party search spend. Hosting and egress have not been measured and are excluded from provider-cost estimates.
+
+## Live evaluation
+
+Run `npm run eval:source-route` for deterministic-only observations. It makes public HTTP requests to the curated targets but never calls search. To use a configured provider, explicitly run `npm run eval:source-route -- --search --provider tavily` (or `brave`) and provide the matching credential. Provider-enabled evaluation requires both the flag and credentials. Results are written under the gitignored `eval-results/` directory. This observational harness is separate from CI and release checks; route usefulness labels allow multiple acceptable route types and domain families. Evaluation cost assumptions use `EVAL_TAVILY_COST_PER_SEARCH` and `EVAL_BRAVE_COST_PER_SEARCH`; the default Tavily zero reflects a temporary evaluation assumption while inside an available free quota. It is not a promise of free service. The report estimates provider spend and gross margin at $0.02 per call, excluding hosting and egress.

@@ -36,6 +36,7 @@ export function createSourceRouteHandler(dependencies: SourceRouteDependencies =
         outboundHttpRequests: discovery.metrics.requests.length + discovery.metrics.searchQueries,
         paidSearchCalls: discovery.metrics.searchQueries,
         discoverySource: discovery.metrics.source,
+        searchProvider: discovery.metrics.searchQueries ? searchProvider?.id ?? null : null,
       },
     });
   };

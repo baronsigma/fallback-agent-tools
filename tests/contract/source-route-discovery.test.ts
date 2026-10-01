@@ -119,7 +119,7 @@ describe('bounded deterministic discovery', () => {
     const timeoutResult = await discoverSourceRoutes(parseSourceRouteInput({ goal: 'Find dataset', domain: 'statistics.test' }), { fetcher: fixtureFetcher({ [`${root}/`]: { body: await fixture('root-plain.html') } }), searchProvider: timed, validateUrl });
     expect(timed.calls).toHaveLength(1);
     expect(timeoutResult.metrics.searchQueries).toBe(1);
-    const malformed = { async search() { return null as never; } };
+    const malformed = { id: 'fake' as const, async search() { return null as never; } };
     const malformedResult = await discoverSourceRoutes(parseSourceRouteInput({ goal: 'Find dataset', domain: 'statistics.test' }), { fetcher: fixtureFetcher({ [`${root}/`]: { body: await fixture('root-plain.html') } }), searchProvider: malformed, validateUrl });
     expect(malformedResult.metrics.searchQueries).toBe(1);
     expect(malformedResult.routes).toEqual([]);

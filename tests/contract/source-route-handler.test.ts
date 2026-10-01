@@ -17,6 +17,6 @@ describe('source_route shared handler', () => {
     expect(response).toMatchObject({ success: true, toolId: 'source_route', toolVersion: '0.1.0', requestId: 'request-fixture-1' });
     if (!response.success) throw new Error('Expected successful tool response.');
     expect(response.result.routes[0]?.route_type).toBe('openapi');
-    expect(response.execution.metrics).toEqual({ outboundHttpRequests: 2, paidSearchCalls: 0, discoverySource: 'direct' });
+    expect(response.execution.metrics).toEqual({ outboundHttpRequests: 2, paidSearchCalls: 0, discoverySource: 'direct', searchProvider: null });
   });
 });

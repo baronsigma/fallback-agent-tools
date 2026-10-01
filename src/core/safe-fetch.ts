@@ -125,7 +125,12 @@ function requestOnce(url: URL, pinnedAddress: string | undefined, timeoutMs: num
     const request = requestFn(url, {
       method: 'GET',
       headers: { 'user-agent': 'Fallback-source-route/0.1 (+https://github.com/baronsigma/fallback-agent-tools)', accept: 'text/html,application/json,application/xml,text/plain,*/*;q=0.5' },
-      ...(pinnedAddress ? { lookup: (_hostname: string, _options: unknown, callback: (error: NodeJS.ErrnoException | null, address: string, family: number) => void) => callback(null, pinnedAddress, isIP(pinnedAddress)) } : {}),
+      ...(pinnedAddress ? { lookup: (_hostname: string, options: unknown, callback: (error: NodeJS.ErrnoException | null, address: string | ResolvedAddress[], family?: number) => void) => {
+        const family = isIP(pinnedAddress);
+        const all = typeof options === 'object' && options !== null && 'all' in options && options.all === true;
+        if (all) callback(null, [{ address: pinnedAddress, family }]);
+        else callback(null, pinnedAddress, family);
+      } } : {}),
       ...(url.protocol === 'https:' ? { servername: url.hostname } : {}),
     }, (response) => {
       const chunks: Buffer[] = [];

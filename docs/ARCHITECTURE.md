@@ -8,11 +8,11 @@ Generated outputs are committed for review and deployment. Never edit them manua
 
 ## Execution path
 
-HTTP or MCP transport -> transport/payment adapter -> shared availability gate -> tool handler -> common response envelope. Transport and payment verification are middleware concerns; pricing lookup is registry-owned. Marketplace logic is an offline publisher concern. Tool handlers implement only domain behavior.
+HTTP or MCP transport -> transport/payment adapter -> canonical availability gate -> runtime handler registry -> tool handler -> common response envelope. `src/core/registry.ts` remains the sole canonical metadata registry; `src/core/handlers.ts` maps canonical IDs to implementations and validates that every available ID has exactly a known executable implementation. Transports dispatch by ID through this shared registry and never own tool business logic. Pricing lookup is registry-owned. Marketplace logic is an offline publisher concern.
 
 An unavailable tool is denied before its handler can run. An available paid tool will be exposed only after its payment configuration is verified. HTTP and MCP must call the same handler implementation.
 
-`source_route` is the first available handler. It calls a shared safe-fetch utility that permits only HTTP/HTTPS to public addresses, revalidates redirects, pins a validated DNS result for the connection, limits request/response size, and enforces time budgets. Its `SearchProvider` interface has a Brave adapter and supports injected fakes. The HTTP adapter calls the same handler; the MCP transport remains an inactive placeholder, and the MCP card advertises no callable tool until that transport is wired.
+`source_route` is the first available handler. It calls a shared safe-fetch utility that permits only HTTP/HTTPS to public addresses, revalidates redirects, pins a validated DNS result for the connection, limits request/response size, and enforces time budgets. Deterministic discovery runs first. If it finds no useful structured result, the `SearchProvider` abstraction permits at most one external query using the explicitly selected provider. Tavily is the preferred MVP provider; Brave remains supported; no provider is required. The HTTP adapter dispatches through the same runtime handler registry future MCP execution will use. The MCP transport remains inactive and `/mcp` says it is not yet enabled.
 
 ## Response envelope
 

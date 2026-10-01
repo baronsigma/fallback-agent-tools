@@ -4,7 +4,7 @@ export type ExecutionMetadata = {
   startedAt: string;
   completedAt: string;
   durationMs: number;
-  metrics?: { outboundHttpRequests: number; paidSearchCalls: number; discoverySource: 'direct' | 'search_fallback' | 'none' };
+  metrics?: { outboundHttpRequests: number; paidSearchCalls: number; discoverySource: 'direct' | 'search_fallback' | 'none'; searchProvider?: string | null };
 };
 
 export type ToolResponse<T> = {

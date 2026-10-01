@@ -16,6 +16,7 @@
     "generate": "tsx scripts/generate-discovery.ts",
     "verify:catalog": "tsx scripts/verify-catalog.ts",
     "benchmark:source-route": "tsx scripts/benchmark-source-route.ts",
+    "eval:source-route": "tsx scripts/eval-source-route.ts",
     "release:check": "tsx scripts/release-check.ts"
   },
   "dependencies": {
