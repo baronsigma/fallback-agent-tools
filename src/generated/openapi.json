@@ -44,6 +44,10 @@
                     "format": "hostname",
                     "pattern": "^(?=.{1,253}\\.?$)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[-0-9a-zA-Z]{0,61}[0-9a-zA-Z])?)*\\.?$"
                   },
+                  "start_url": {
+                    "type": "string",
+                    "maxLength": 2048
+                  },
                   "preferred_formats": {
                     "maxItems": 7,
                     "type": "array",

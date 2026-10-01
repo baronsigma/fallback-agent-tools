@@ -1,11 +1,13 @@
 import { z } from 'zod';
 import { isIP } from 'node:net';
+import { getDomain as getRegistrableDomain } from 'tldts';
 
 export const preferredFormatSchema = z.enum(['json', 'csv', 'xml', 'rss', 'api', 'bulk_download', 'html']);
 
 export const sourceRouteInputSchema = z.object({
   goal: z.string().trim().min(3).max(500),
   domain: z.hostname().trim().max(253).optional(),
+  start_url: z.string().max(2048).refine((value) => { try { return ['http:', 'https:'].includes(new URL(value).protocol); } catch { return false; } }, 'start_url must be an absolute HTTP or HTTPS URL.').optional(),
   preferred_formats: z.array(preferredFormatSchema).max(7).optional(),
   require_official: z.boolean().default(false),
   max_candidates: z.number().int().min(1).max(10).default(5),
@@ -15,7 +17,8 @@ export const routeTypeSchema = z.enum([
   'official_api', 'openapi', 'bulk_download', 'structured_feed', 'dataset', 'developer_docs', 'structured_web', 'web',
 ]);
 
-export const publisherMatchSchema = z.enum(['exact_domain', 'linked_from_domain', 'search_discovered']);
+export const publisherMatchSchema = z.enum(['exact_domain', 'same_site', 'linked_from_domain', 'search_discovered']);
+export const verificationSchema = z.enum(['content_verified', 'publisher_linked', 'search_only']);
 export const authSchema = z.enum(['none_observed', 'appears_required', 'unknown']);
 
 export const sourceRouteOutputSchema = z.object({
@@ -25,6 +28,7 @@ export const sourceRouteOutputSchema = z.object({
     route_type: routeTypeSchema,
     format: z.string().optional(),
     publisher_match: publisherMatchSchema,
+    verification: verificationSchema,
     machine_readable: z.boolean(),
     auth: authSchema,
     score: z.number().min(0).max(1),
@@ -62,7 +66,19 @@ export function normalizeDomain(input: string): string {
 
 export function parseSourceRouteInput(input: unknown): SourceRouteInput {
   const parsed = sourceRouteInputSchema.parse(input);
-  if (!parsed.domain) return parsed;
-  try { return { ...parsed, domain: normalizeDomain(parsed.domain) }; }
-  catch (error) { throw new SourceRouteInputError(error instanceof Error ? error.message : 'domain is invalid.'); }
+  let domain = parsed.domain;
+  let startUrl: URL | undefined;
+  try {
+    if (domain) domain = normalizeDomain(domain);
+    if (parsed.start_url) {
+      startUrl = new URL(parsed.start_url);
+      if (!['http:', 'https:'].includes(startUrl.protocol)) throw new Error('start_url must use HTTP or HTTPS.');
+      if (startUrl.username || startUrl.password) throw new Error('start_url credentials are not allowed.');
+      startUrl.hash = '';
+      const startHost = normalizeDomain(startUrl.hostname);
+      if (domain && normalizeDomain(domain) !== startHost && getRegistrableDomain(normalizeDomain(domain)) !== getRegistrableDomain(startHost)) throw new Error('domain and start_url must identify compatible publisher roots.');
+      domain ??= startHost;
+    }
+    return { ...parsed, ...(domain ? { domain } : {}), ...(startUrl ? { start_url: startUrl.toString() } : {}) };
+  } catch (error) { throw new SourceRouteInputError(error instanceof Error ? error.message : 'domain or start_url is invalid.'); }
 }

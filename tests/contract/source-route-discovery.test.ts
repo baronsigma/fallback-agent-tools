@@ -56,7 +56,7 @@ describe('bounded deterministic discovery', () => {
 
     const sitemapBody = await fixture('sitemap.xml');
     const sitemapResult = await discoverSourceRoutes(parseSourceRouteInput({ goal: 'Download summary data', domain: 'statistics.test' }), { fetcher: fixtureFetcher({ [`${root}/`]: { body: await fixture('root-plain.html') }, [`${root}/robots.txt`]: { body: await fixture('robots.txt'), contentType: 'text/plain' }, [`${root}/sitemap.xml`]: { body: sitemapBody, contentType: 'application/xml' } }), validateUrl });
-    expect(sitemapResult.routes.some((route) => route.format === 'json' && route.reasons.some((reason) => reason.includes('sitemap')))).toBe(true);
+    expect(sitemapResult.routes.some((route) => route.url.endsWith('/sitemap.xml'))).toBe(false);
   });
 
   it('reports no suitable route within checked scope for a plain site with no search provider', async () => {
@@ -66,10 +66,10 @@ describe('bounded deterministic discovery', () => {
     expect(result.limitations.join(' ')).toContain('no search provider is configured');
   });
 
-  it('offers structured HTML as a lower-ranked fallback when JSON-LD is observed', async () => {
+  it('does not recommend a homepage solely because JSON-LD metadata is present', async () => {
     const fetcher = fixtureFetcher({ [`${root}/`]: { body: '<html><script type="application/ld+json">{"@type":"Dataset"}</script></html>' } });
     const result = await discoverSourceRoutes(parseSourceRouteInput({ goal: 'View structured publisher information', domain: 'statistics.test' }), { fetcher, validateUrl });
-    expect(result.routes[0]).toMatchObject({ route_type: 'structured_web', machine_readable: true, publisher_match: 'exact_domain' });
+    expect(result.routes).toEqual([]);
     expect(result.metrics.searchQueries).toBe(0);
   });
 
@@ -95,6 +95,51 @@ describe('bounded deterministic discovery', () => {
     const result = await discoverSourceRoutes(parseSourceRouteInput({ goal: 'Find the API schema', domain: 'statistics.test' }), { fetcher, validateUrl });
     expect(result.routes.some((route) => route.route_type === 'openapi')).toBe(false);
     expect(result.routes.some((route) => route.route_type === 'developer_docs' && route.url.endsWith('/fake-openapi'))).toBe(true);
+  });
+
+  it('starts from the supplied start_url path and does not treat feedback as a feed', async () => {
+    const start = 'https://statistics.test/docs/';
+    const fetcher = fixtureFetcher({ [start]: { body: '<a href="/feedback/api.json">Feedback API</a><a href="/docs/guide">SQL command documentation</a>' } });
+    const result = await discoverSourceRoutes(parseSourceRouteInput({ goal: 'Find SQL command docs', start_url: start }), { fetcher, validateUrl });
+    expect(fetcher.requested[0]).toBe(start);
+    expect(result.routes.some((route) => route.route_type === 'structured_feed')).toBe(false);
+  });
+
+  it('does not promote generic JSON/XML resources or unrelated static assets as datasets', async () => {
+    const fetcher = fixtureFetcher({
+      [`${root}/`]: { body: '<a href="/sitemap.xml">Sitemap</a><a href="/manifest.json">Manifest</a><a href="https://fonts.googleapis.com/css2?family=Roboto">Fonts</a><a href="/wp-json">WordPress API discovery</a><a href="/population.json">Population dataset</a>' },
+      [`${root}/sitemap.xml`]: { body: '<urlset><url><loc>https://statistics.test/sitemap.xml</loc></url></urlset>', contentType: 'application/xml' },
+      [`${root}/manifest.json`]: { body: '{"name":"App","icons":[]}', contentType: 'application/json' },
+      [`${root}/population.json`]: { body: '{"data":[{"year":2020,"value":42}]}', contentType: 'application/json' },
+    });
+    const result = await discoverSourceRoutes(parseSourceRouteInput({ goal: 'Find population statistics', domain: 'statistics.test' }), { fetcher, validateUrl });
+    expect(result.routes.some((route) => /sitemap|manifest|wp-json|fonts\.googleapis/.test(route.url))).toBe(false);
+  });
+
+  it('keeps unrelated third-party API search results non-official and lower trust', async () => {
+    const provider = new FakeSearchProvider([{ url: 'https://github.com/example/sec-api-wrapper', title: 'SEC API wrapper', description: 'Developer docs for a client library for SEC company facts' }]);
+    const result = await discoverSourceRoutes(parseSourceRouteInput({ goal: 'Find SEC public company filings and submissions API', domain: 'sec.gov' }), { fetcher: fixtureFetcher({ [`https://sec.gov/`]: { body: '<html>filings homepage</html>' } }), searchProvider: provider, validateUrl });
+    expect(result.routes.some((route) => route.url.includes('github.com') && route.route_type === 'official_api')).toBe(false);
+    expect(result.routes.find((route) => route.url.includes('github.com'))?.route_type).toBe('developer_docs');
+  });
+
+  it('uses registrable publisher sites while distinguishing unrelated domains', () => {
+    const candidates = [
+      { url: 'https://api.worldbank.org/v2/country', route_type: 'official_api', format: 'api', publisher_match: 'same_site', verification: 'publisher_linked', machine_readable: true, auth: 'unknown', score: 0, reasons: [] },
+      { url: 'https://github.com/worldbank/api', route_type: 'official_api', format: 'api', publisher_match: 'search_discovered', verification: 'search_only', machine_readable: true, auth: 'unknown', score: 0, reasons: [] },
+    ] as RouteCandidate[];
+    const ranked = rankCandidates(candidates, ['api'], false, 'Find World Bank indicators API');
+    expect(ranked[0]?.publisher_match).toBe('same_site');
+    expect(ranked[1]?.publisher_match).toBe('search_discovered');
+  });
+
+  it('reserves direct phase time for a configured search provider', async () => {
+    const provider = new FakeSearchProvider([]);
+    const slowFetcher: SafeFetcher = { async fetch(_url, onRequest, timeoutMs) { onRequest(`${root}/`); await new Promise((resolve) => setTimeout(resolve, Math.min(30, timeoutMs ?? 30))); throw new Error('simulated slow publisher'); } };
+    const result = await discoverSourceRoutes(parseSourceRouteInput({ goal: 'Find population API', domain: 'statistics.test' }), { fetcher: slowFetcher, searchProvider: provider, validateUrl });
+    expect(provider.calls).toHaveLength(1);
+    expect(result.metrics.searchQueries).toBe(1);
+    expect(result.metrics.requests.length).toBeLessThanOrEqual(6);
   });
 
   it('performs exactly one search fallback after deterministic discovery fails', async () => {
@@ -127,7 +172,7 @@ describe('bounded deterministic discovery', () => {
 });
 
 describe('deterministic ranking', () => {
-  const route = (url: string, route_type: RouteCandidate['route_type'], format: string, machine_readable: boolean): RouteCandidate => ({ url, route_type, format, publisher_match: 'linked_from_domain', machine_readable, auth: 'unknown', score: 0, reasons: [] });
+  const route = (url: string, route_type: RouteCandidate['route_type'], format: string, machine_readable: boolean): RouteCandidate => ({ url, route_type, format, publisher_match: 'linked_from_domain', verification: 'content_verified', machine_readable, auth: 'unknown', score: 0, reasons: [] });
   it('ranks official structured routes above HTML and applies format preferences', () => {
     const ranked = rankCandidates([route('https://a.test/page', 'web', 'html', false), route('https://a.test/metadata.json', 'dataset', 'json', true), route('https://a.test/data.csv', 'dataset', 'csv', true)], ['csv']);
     expect(ranked[0]?.url).toBe('https://a.test/data.csv');

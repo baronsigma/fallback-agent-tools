@@ -21,7 +21,7 @@ export function createSourceRouteHandler(dependencies: SourceRouteDependencies =
       ...(searchProvider ? { searchProvider } : {}),
     });
     const output = sourceRouteOutputSchema.parse({
-      status: discovery.routes.length ? 'routes_found' : !input.domain && !searchProvider ? 'insufficient_input' : 'no_suitable_route_found',
+      status: discovery.routes.length ? 'routes_found' : !input.domain && !input.start_url && !searchProvider ? 'insufficient_input' : 'no_suitable_route_found',
       routes: discovery.routes,
       checked: {
         direct_probes: discovery.metrics.requests,

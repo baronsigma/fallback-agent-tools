@@ -7,6 +7,14 @@ describe('source_route contract', () => {
     expect(parseSourceRouteInput({ goal: 'Find a documented API', domain: 'EXAMPLE.org' }).domain).toBe('example.org');
   });
 
+  it('preserves a safe start_url path and derives its publisher hostname', () => {
+    expect(parseSourceRouteInput({ goal: 'Find WHO health data', start_url: 'https://www.who.int/data/gho?x=1#part' })).toMatchObject({ domain: 'www.who.int', start_url: 'https://www.who.int/data/gho?x=1' });
+  });
+
+  it.each(['ftp://example.org/x', 'https://user:pass@example.org/x', 'https://a.example/x'])('rejects invalid or incompatible start_url %s', (start_url) => {
+    expect(() => parseSourceRouteInput({ goal: 'Find a route', domain: 'who.int', start_url })).toThrow();
+  });
+
   it.each(['ftp://example.org', 'file:///etc/passwd', 'javascript:alert(1)', 'localhost', '127.0.0.1', 'example.org/path', 'user@example.org'])('rejects unsafe or malformed domain %s', (domain) => {
     expect(() => parseSourceRouteInput({ goal: 'Find a data route', domain })).toThrow();
   });

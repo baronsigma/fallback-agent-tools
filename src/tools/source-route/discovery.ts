@@ -1,12 +1,14 @@
 import { NETWORK_LIMITS, type SafeFetchResult, type SafeFetcher, safeFetcher, validatePublicHttpUrl } from '../../core/safe-fetch.js';
 import { normalizeDomain, type SourceRouteInput } from './contract.js';
 import type { SearchHit, SearchProvider } from './search-provider.js';
+import { getDomain } from 'tldts';
 
 export type RouteCandidate = {
   url: string;
   route_type: 'official_api' | 'openapi' | 'bulk_download' | 'structured_feed' | 'dataset' | 'developer_docs' | 'structured_web' | 'web';
   format?: string;
-  publisher_match: 'exact_domain' | 'linked_from_domain' | 'search_discovered';
+  publisher_match: 'exact_domain' | 'same_site' | 'linked_from_domain' | 'search_discovered';
+  verification: 'content_verified' | 'publisher_linked' | 'search_only';
   machine_readable: boolean;
   auth: 'none_observed' | 'appears_required' | 'unknown';
   score: number;
@@ -22,6 +24,25 @@ export type SourceRouteDiscoveryOptions = {
 };
 
 const OPENAPI_PATHS = ['/openapi.json', '/.well-known/openapi.json', '/swagger.json'];
+const DIRECT_BUDGET_WITH_SEARCH = 7_000;
+const DIRECT_REQUEST_CAP_WITH_SEARCH = NETWORK_LIMITS.maxHttpRequests - 2;
+
+function publisherRelationship(host: string, suppliedHost: string, directlyLinked = false): RouteCandidate['publisher_match'] {
+  const a = host.toLowerCase().replace(/\.$/, ''), b = suppliedHost.toLowerCase().replace(/\.$/, '');
+  if (a === b) return 'exact_domain';
+  const aDomain = getDomain(a), bDomain = getDomain(b);
+  if (aDomain && bDomain && aDomain === bDomain) return 'same_site';
+  return directlyLinked ? 'linked_from_domain' : 'search_discovered';
+}
+
+function isFeedLabel(value: string): boolean { return /(?:^|[\s/._-])(?:rss|atom|feed)(?:$|[\s/._-])/i.test(value); }
+function isGenericAsset(url: URL, contentType = ''): boolean {
+  const path = url.pathname.toLowerCase();
+  return /(?:^|\/)(?:sitemap(?:[-\w]*)?\.xml|manifest\.json|service-worker(?:\.js)?|sw\.js|robots\.txt|favicon(?:\.ico)?)(?:$|\/)/.test(path)
+    || /\.well-known\/(?:openapi|swagger)\.json$/i.test(path) && !contentType.includes('json')
+    || /fonts?\./i.test(url.hostname) || /(?:^|\/)(?:fonts?)(?:\/|$)/.test(path)
+    || /(?:font|image|javascript)/i.test(contentType) && /\.(?:woff2?|ttf|otf|ico|png|jpe?g|svg|js)(?:$|\?)/i.test(url.href);
+}
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -58,42 +79,56 @@ function extractLinks(html: string, base: string): Array<{ url: string; text: st
 
 function linkedCandidate(link: { url: string; text: string; rel?: string; type?: string }, publisherHost: string): RouteCandidate | undefined {
   const target = new URL(link.url);
-  const exact = target.hostname.toLowerCase() === publisherHost.toLowerCase();
+  const relationship = publisherRelationship(target.hostname, publisherHost, true);
+  const trusted = relationship !== 'search_discovered';
   const label = `${link.text} ${link.url} ${link.rel ?? ''} ${link.type ?? ''}`.toLowerCase();
+  if (isGenericAsset(target, link.type ?? '')) return undefined;
   const format = /\.csv(?:$|[?#])/.test(target.href) || /text\/csv/.test(link.type ?? '') || /\bcsv\b/.test(label) ? 'csv'
     : /\.json(?:$|[?#])/.test(target.href) || /json/.test(link.type ?? '') || /\bjson\b/.test(label) ? 'json'
     : /\.xml(?:$|[?#])/.test(target.href) || /xml/.test(link.type ?? '') || /\bxml\b/.test(label) ? 'xml'
-    : /rss|atom/.test(`${label} ${target.pathname}`) ? 'rss' : undefined;
-  if (/openapi|swagger/.test(label)) return candidate(link.url, 'openapi', 'json', exact ? 'exact_domain' : 'linked_from_domain', true, ['OpenAPI or Swagger reference was linked from the supplied site.']);
-  if (/rss|atom/.test(label) || /application\/(?:rss|atom)\+xml/.test(link.type ?? '')) return candidate(link.url, 'structured_feed', 'rss', exact ? 'exact_domain' : 'linked_from_domain', true, ['Feed link was exposed by the supplied site.']);
-  if (/\.csv(?:$|[?#])/.test(target.href) || /text\/csv/.test(link.type ?? '') || /dataset|download|bulk|data export/.test(label) && format) {
-    return candidate(link.url, 'bulk_download', format ?? 'csv', exact ? 'exact_domain' : 'linked_from_domain', true, ['A downloadable structured file was linked from the supplied site.']);
+    : isFeedLabel(`${label} ${target.pathname}`) ? 'rss' : undefined;
+  if (/openapi|swagger/.test(label) && trusted) return candidate(link.url, 'openapi', 'json', relationship, true, ['OpenAPI or Swagger reference was linked from the supplied site.']);
+  if (isFeedLabel(`${label} ${target.pathname}`) || /application\/(?:rss|atom)\+xml/i.test(link.type ?? '')) return candidate(link.url, 'structured_feed', 'rss', relationship, true, ['Feed link was exposed by the supplied site.']);
+  if ((/\.csv(?:$|[?#])/.test(target.href) || /text\/csv/.test(link.type ?? '')) && trusted || /dataset|download|bulk|data export/.test(label) && format) {
+    return candidate(link.url, 'bulk_download', format ?? 'csv', relationship, true, ['A downloadable structured file was linked from the supplied site.']);
   }
-  if (/\.json(?:$|[?#])/.test(target.href)) return candidate(link.url, 'dataset', format ?? 'json', exact ? 'exact_domain' : 'linked_from_domain', true, ['A JSON resource was linked from the supplied site.']);
-  if (format === 'json' || format === 'xml') return candidate(link.url, 'dataset', format, exact ? 'exact_domain' : 'linked_from_domain', true, ['A structured document was exposed through an alternate/discovery link.']);
-  if (/\/api(?:\/|$)|api reference|developer|data portal|documentation|docs/.test(label)) return candidate(link.url, /\/api(?:\/|$)/.test(target.pathname) ? 'official_api' : 'developer_docs', 'api', exact ? 'exact_domain' : 'linked_from_domain', /\/api(?:\/|$)/.test(target.pathname), ['API or developer documentation was linked from the supplied site.']);
-  if (exact && link.text.length > 10) return candidate(link.url, 'web', 'html', 'exact_domain', false, ['Page was linked from the supplied site.']);
+  if (/\.json(?:$|[?#])/.test(target.href) && trusted && /(?:dataset|download|data|indicator|api)/i.test(label)) return candidate(link.url, 'dataset', format ?? 'json', relationship, true, ['A semantically labelled JSON resource was linked from the supplied site.']);
+  if ((format === 'json' || format === 'xml') && trusted && /(?:dataset|download|data|indicator|records|observations)/i.test(label)) return candidate(link.url, 'dataset', format, relationship, true, ['A labelled structured document was exposed through an alternate/discovery link.']);
+  if (/\/api(?:\/|$)|api reference|developer|data portal|documentation|docs/.test(label)) return candidate(link.url, /\/api(?:\/|$)/.test(target.pathname) && trusted ? 'official_api' : 'developer_docs', 'api', relationship, /\/api(?:\/|$)/.test(target.pathname) && trusted, ['API or developer documentation was linked from the supplied site.']);
+  if (relationship === 'exact_domain' && link.text.length > 10 && !/wp-json|\.json|\.xml|\.csv/i.test(target.pathname)) return candidate(link.url, 'web', 'html', relationship, false, ['Page was linked from the supplied site.']);
   return undefined;
 }
 
 function candidate(url: string, route_type: RouteCandidate['route_type'], format: string | undefined, publisher_match: RouteCandidate['publisher_match'], machine_readable: boolean, reasons: string[]): RouteCandidate {
-  return { url, route_type, ...(format ? { format } : {}), publisher_match, machine_readable, auth: 'unknown', score: 0, reasons };
+  return { url, route_type, ...(format ? { format } : {}), publisher_match, verification: publisher_match === 'search_discovered' ? 'search_only' : 'publisher_linked', machine_readable, auth: 'unknown', score: 0, reasons };
 }
 
 function classifyProbe(url: string, body: string, contentType: string, publisherMatch: RouteCandidate['publisher_match'], reason: string, status = 200): RouteCandidate | undefined {
-  const path = new URL(url).pathname.toLowerCase();
+  const parsedUrl = new URL(url);
+  const path = parsedUrl.pathname.toLowerCase();
+  if (isGenericAsset(parsedUrl, contentType)) return undefined;
   if (status === 401 || status === 403) {
     if (/openapi|swagger/.test(path)) return candidate(url, 'openapi', 'json', publisherMatch, true, [reason, `Probe returned HTTP ${status}; authentication appears required.`]);
     if (/\/(?:api|data)(?:\/|$)/.test(path)) return candidate(url, 'official_api', 'api', publisherMatch, /json|xml|csv/.test(contentType), [reason, `Probe returned HTTP ${status}; authentication appears required.`]);
     return undefined;
   }
+  if (/wordpress/i.test(body.slice(0, 2000)) || /(?:^|\/)wp-json(?:\/|$)/i.test(path) && !/openapi|swagger/i.test(body.slice(0, 2000))) return undefined;
   const bodyLooksLikeOpenApi = /json/.test(contentType) && /"(?:openapi|swagger)"\s*:/i.test(body.slice(0, 2000))
     || /yaml|yml/.test(contentType) && /^(?:openapi|swagger)\s*:/im.test(body.slice(0, 2000));
-  if (/openapi|swagger/.test(contentType) || bodyLooksLikeOpenApi) return candidate(url, 'openapi', /yaml|yml/.test(contentType) ? 'yaml' : 'json', publisherMatch, true, [reason, 'Response identifies itself as an API specification.']);
-  if (path.endsWith('.csv') || /text\/csv/.test(contentType)) return candidate(url, 'dataset', 'csv', publisherMatch, true, [reason, 'Response is a CSV dataset.']);
-  if (/json/.test(contentType)) return candidate(url, 'dataset', 'json', publisherMatch, true, [reason, 'Response is JSON.']);
-  if (/rss|atom/.test(contentType) || /<rss\b|<feed\b/.test(body.slice(0, 1000).toLowerCase())) return candidate(url, 'structured_feed', 'xml', publisherMatch, true, [reason, 'Response is a structured feed.']);
-  if (/xml/.test(contentType)) return candidate(url, 'dataset', 'xml', publisherMatch, true, [reason, 'Response is structured XML.']);
+  if (bodyLooksLikeOpenApi || /(?:openapi|swagger)/i.test(contentType) && status >= 200 && status < 300) {
+    const spec = candidate(url, 'openapi', /yaml|yml/.test(contentType) ? 'yaml' : 'json', publisherMatch, true, [reason, 'Response identifies itself as an API specification.']);
+    spec.verification = 'content_verified'; return spec;
+  }
+  if (path.endsWith('.csv') || /text\/csv/.test(contentType)) { const csv = candidate(url, 'dataset', 'csv', publisherMatch, true, [reason, 'Response is a CSV dataset.']); csv.verification = 'content_verified'; return csv; }
+  if (/application\/(?:rss|atom)\+xml/i.test(contentType) || /<rss\b|<feed\b/.test(body.slice(0, 1000).toLowerCase())) { const feed = candidate(url, 'structured_feed', 'xml', publisherMatch, true, [reason, 'Response is a structured feed.']); feed.verification = 'content_verified'; return feed; }
+  if (/json/.test(contentType) && /(?:^|\/)(?:api|data|dataset|indicator|download)(?:\/|$)/.test(path)) {
+    try {
+      const parsed: unknown = JSON.parse(body);
+      if (Array.isArray(parsed) && parsed.length > 0 || parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0 && (/(?:data|results|observations|indicators|records|features|items)/i.test(Object.keys(parsed).join(' ')) || Object.values(parsed).some(Array.isArray))) {
+        const verified = candidate(url, 'dataset', 'json', publisherMatch, true, [reason, 'Response contains structured data records.']); verified.verification = 'content_verified'; return verified;
+      }
+    } catch { /* arbitrary or malformed JSON is not a dataset */ }
+  }
   return undefined;
 }
 
@@ -101,20 +136,34 @@ function authFromStatus(status: number): RouteCandidate['auth'] {
   return status === 401 || status === 403 ? 'appears_required' : status >= 200 && status < 400 ? 'none_observed' : 'unknown';
 }
 
-export function rankCandidates(candidates: RouteCandidate[], preferred: string[] = [], requireOfficial = false): RouteCandidate[] {
+const STOP_WORDS = new Set(['a', 'an', 'and', 'are', 'as', 'at', 'by', 'for', 'from', 'find', 'get', 'in', 'into', 'of', 'on', 'or', 'the', 'to', 'with', 'data', 'route', 'source']);
+function goalTokens(goal: string): string[] { return goal.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter((token) => token.length > 2 && !STOP_WORDS.has(token)); }
+function goalRelevance(goal: string, context: string): number {
+  const wanted = [...new Set(goalTokens(goal))];
+  if (!wanted.length) return 0;
+  const available = new Set(goalTokens(context));
+  return wanted.filter((token) => available.has(token)).length / wanted.length;
+}
+
+export function rankCandidates(candidates: RouteCandidate[], preferred: string[] = [], requireOfficial = false, goal = ''): RouteCandidate[] {
   const typeBase: Record<RouteCandidate['route_type'], number> = {
     official_api: 0.94, openapi: 0.90, bulk_download: 0.87, dataset: 0.86,
     structured_feed: 0.84, developer_docs: 0.68, structured_web: 0.62, web: 0.42,
   };
   return candidates.map((route) => {
     let score = typeBase[route.route_type];
-    if (route.publisher_match === 'exact_domain') score += 0.07;
+    if (route.publisher_match === 'exact_domain') score += 0.10;
+    else if (route.publisher_match === 'same_site') score += 0.08;
     else if (route.publisher_match === 'linked_from_domain') score += 0.04;
-    if (route.machine_readable) score += 0.04;
+    if (route.machine_readable) score += 0.02;
+    if (route.verification === 'search_only') score -= 0.12;
     if (route.auth === 'appears_required') score -= 0.12;
     if (route.auth === 'none_observed') score += 0.02;
     if (route.format && preferred.some((format) => format === route.format || (format === 'api' && ['official_api', 'openapi'].includes(route.route_type)) || (format === 'bulk_download' && ['bulk_download', 'dataset'].includes(route.route_type)))) score += 0.12;
     if (requireOfficial && route.publisher_match === 'search_discovered') score -= 0.25;
+    const relevance = goalRelevance(goal, `${route.url} ${route.reasons.join(' ')}`);
+    score += relevance * 0.18;
+    if (route.verification === 'search_only' && relevance < 0.15) score -= 0.20;
     const sortScore = score;
     score = Math.max(0, Math.min(1, Math.round(score * 100) / 100));
     return { route: { ...route, score }, sortScore };
@@ -126,36 +175,40 @@ function sitemapLocations(body: string, base: string): string[] {
 }
 
 function addSitemapCandidates(body: string, sitemapUrl: string, siteHost: string, suppliedHost: string, candidates: RouteCandidate[]): void {
+  if (/<(?:sitemapindex|urlset)\b/i.test(body)) return;
   for (const location of sitemapLocations(body, sitemapUrl)) {
     const loc = new URL(location);
     if (loc.hostname.toLowerCase() !== siteHost.toLowerCase() || !/\.(?:json|csv|xml)(?:$|[?#])/i.test(loc.href)) continue;
     const ext = loc.pathname.split('.').pop()?.toLowerCase();
-    const feed = ext === 'xml' && /rss|atom|feed/i.test(loc.pathname);
-    const publisherMatch = loc.hostname.toLowerCase() === suppliedHost.toLowerCase() ? 'exact_domain' : 'linked_from_domain';
-    candidates.push(candidate(location, feed ? 'structured_feed' : 'dataset', ext, publisherMatch, true, ["Structured resource URL was listed in the site's sitemap."]));
+    if (isGenericAsset(loc)) continue;
+    const feed = ext === 'xml' && isFeedLabel(loc.pathname);
+    const publisherMatch = publisherRelationship(loc.hostname, suppliedHost, true);
+    if (!feed && !/(?:dataset|download|data|indicator|records|observations)/i.test(loc.pathname) && ext !== 'json') continue;
+    candidates.push(candidate(location, feed ? 'structured_feed' : 'dataset', ext, publisherMatch, true, ["Goal-like structured resource URL was listed in the site's sitemap."]));
   }
 }
 
 function searchHitCandidate(hit: SearchHit, domain: string | undefined): RouteCandidate {
   const url = new URL(hit.url);
   const label = `${hit.title} ${hit.description} ${url.pathname}`.toLowerCase();
-  const domainMatch = domain && url.hostname.toLowerCase() === domain.toLowerCase();
-  const match = domainMatch ? 'exact_domain' : 'search_discovered';
-  const relationshipReason = domainMatch ? 'Search result hostname exactly matches the supplied domain; page content was not fetched.' : 'Search result hostname was observed, but its relationship to an official publisher was not independently verified.';
-  if (/openapi|swagger/.test(label)) return candidate(hit.url, 'openapi', 'json', match, /\.json$/i.test(url.pathname), ['Search result title or description identifies an OpenAPI/Swagger document; content was not fetched.', relationshipReason]);
-  if (/\.csv(?:$|[?#])/.test(url.href) || /bulk download|dataset|csv/.test(label)) return candidate(hit.url, /api|endpoint/.test(label) ? 'official_api' : 'bulk_download', 'csv', match, /\.csv$/i.test(url.pathname), ['Search result points to a possible structured download; content was not fetched.', relationshipReason]);
-  if (/rss|atom|feed/.test(label)) return candidate(hit.url, 'structured_feed', 'rss', match, /\.(?:rss|atom|xml)$/i.test(url.pathname), ['Search result identifies a possible feed; content was not fetched.', relationshipReason]);
+  const match = domain ? publisherRelationship(url.hostname, domain) : 'search_discovered';
+  const relationshipReason = match === 'exact_domain' || match === 'same_site' ? 'Search result is on the supplied publisher site family; page content was not fetched.' : 'Search result hostname was observed, but its relationship to an official publisher was not independently verified.';
+  if (isGenericAsset(url)) return candidate(hit.url, 'web', 'html', match, false, ['Search result points to a generic discovery or static asset, not a goal route.', relationshipReason]);
+  const verifiedPublisher = match === 'exact_domain' || match === 'same_site';
+  if (verifiedPublisher && /openapi|swagger/.test(label)) return candidate(hit.url, 'openapi', 'json', match, false, ['Search result suggests an OpenAPI/Swagger document; content was not fetched.', relationshipReason]);
+  if (verifiedPublisher && (/\.csv(?:$|[?#])/.test(url.href) || /bulk download|dataset|csv/.test(label))) return candidate(hit.url, 'bulk_download', 'csv', match, false, ['Search result points to a possible structured download; content was not fetched.', relationshipReason]);
+  if (isFeedLabel(label)) return candidate(hit.url, 'structured_feed', 'rss', match, false, ['Search result identifies a possible feed; content was not fetched.', relationshipReason]);
   if (/api|developer|documentation|docs/.test(label)) return candidate(hit.url, 'developer_docs', 'api', match, false, ['Search result describes API or developer documentation.', relationshipReason]);
   return candidate(hit.url, 'web', 'html', match, false, ['Found by the single bounded external search query.', relationshipReason]);
 }
 
-async function readIfFetched(fetcher: SafeFetcher, url: string, requests: string[], budget: { pagesFetched: number }, startedAt: number): Promise<SafeFetchResult | undefined> {
+async function readIfFetched(fetcher: SafeFetcher, url: string, requests: string[], budget: { pagesFetched: number }, startedAt: number, deadlineAt = startedAt + NETWORK_LIMITS.totalTimeoutMs, requestCap: number = NETWORK_LIMITS.maxHttpRequests): Promise<SafeFetchResult | undefined> {
   try {
-    const remaining = NETWORK_LIMITS.totalTimeoutMs - (Date.now() - startedAt);
+    const remaining = Math.min(NETWORK_LIMITS.totalTimeoutMs - (Date.now() - startedAt), deadlineAt - Date.now());
     if (remaining <= 0) throw new Error('Total execution time limit reached.');
     const result = await fetcher.fetch(url, (requested) => {
-      if (requests.length >= NETWORK_LIMITS.maxHttpRequests) throw new Error('HTTP request budget exceeded.');
-      if (Date.now() - startedAt >= NETWORK_LIMITS.totalTimeoutMs) throw new Error('Total execution time limit reached.');
+      if (requests.length >= requestCap) throw new Error('HTTP request budget exceeded.');
+      if (Date.now() - startedAt >= NETWORK_LIMITS.totalTimeoutMs || Date.now() >= deadlineAt) throw new Error('Discovery phase deadline reached.');
       requests.push(requested);
     }, Math.min(remaining, NETWORK_LIMITS.requestTimeoutMs));
     budget.pagesFetched += 1;
@@ -173,25 +226,26 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
   const candidates: RouteCandidate[] = [];
   const validatedCandidateUrls = new Set<string>();
   const limitations: string[] = [];
+  const phaseDeadline = () => startedAt + (options.searchProvider ? DIRECT_BUDGET_WITH_SEARCH : NETWORK_LIMITS.totalTimeoutMs);
   let root: URL | undefined;
   let suppliedHost: string | undefined;
   let linked: Array<{ url: string; text: string; rel?: string; type?: string }> = [];
 
-  if (input.domain) {
-    const hostname = normalizeDomain(input.domain);
+  if (input.domain || input.start_url) {
+    const hostname = normalizeDomain(input.domain ?? new URL(input.start_url!).hostname);
     suppliedHost = hostname;
-    const initial = new URL(`https://${hostname}`);
-    root = new URL(initial.origin);
+    const initial = input.start_url ? new URL(input.start_url) : new URL(`https://${hostname}`);
+    root = new URL(initial.toString());
     try {
-      const validationTime = NETWORK_LIMITS.totalTimeoutMs - (Date.now() - startedAt);
+      const validationTime = Math.min(phaseDeadline() - Date.now(), NETWORK_LIMITS.totalTimeoutMs - (Date.now() - startedAt));
       if (validationTime <= 0) throw new Error('Total execution time limit reached.');
       await withTimeout(validateUrl(root.toString()), validationTime);
-      const result = await readIfFetched(fetcher, root.toString(), requests, counters, startedAt);
+      const result = await readIfFetched(fetcher, root.toString(), requests, counters, startedAt, phaseDeadline(), options.searchProvider ? DIRECT_REQUEST_CAP_WITH_SEARCH : NETWORK_LIMITS.maxHttpRequests);
     if (result) {
         const finalUrl = new URL(result.url);
         root = finalUrl;
         linked = extractLinks(result.body, finalUrl.toString()).slice(0, 100);
-        const rootPublisherMatch = finalUrl.hostname.toLowerCase() === hostname.toLowerCase() ? 'exact_domain' : 'linked_from_domain';
+        const rootPublisherMatch = publisherRelationship(finalUrl.hostname, hostname, true);
         for (const link of linked) {
           const found = linkedCandidate(link, hostname);
           if (found) { found.auth = 'unknown'; candidates.push(found); }
@@ -199,42 +253,41 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
         const rootCandidate = result.status >= 200 && result.status < 400 || result.status === 401 || result.status === 403
           ? classifyProbe(result.url, result.body, String(result.headers['content-type'] ?? ''), rootPublisherMatch, 'The domain root returned this structured response.', result.status) : undefined;
         if (rootCandidate) { rootCandidate.auth = authFromStatus(result.status); candidates.push(rootCandidate); }
-        if (!rootCandidate && result.status >= 200 && result.status < 400 && /html/i.test(String(result.headers['content-type'] ?? '')) && /<script\b[^>]*type\s*=\s*["']application\/ld\+json["']/i.test(result.body)) {
-          const structuredPage = candidate(result.url, 'structured_web', 'html', rootPublisherMatch, true, ['The homepage embeds JSON-LD structured metadata.']);
-          structuredPage.auth = authFromStatus(result.status);
-          candidates.push(structuredPage);
-        }
     } else limitations.push('The supplied domain could not be fetched within the network safety and request limits.');
     } catch (error) {
     limitations.push(error instanceof Error ? `Domain fetch was blocked or failed: ${error.message}` : 'Domain fetch was blocked or failed.');
     }
 
-    const paths = new Set<string>(['/llms.txt', '/robots.txt']);
+    const paths = new Set<string>();
+    if (!root.pathname.replace(/\/$/, '')) paths.add('/llms.txt');
+    paths.add(new URL('/robots.txt', root.origin).toString());
     for (const link of linked) {
       const linkedUrl = new URL(link.url);
       const path = linkedUrl.pathname.toLowerCase();
       if (/openapi|swagger/.test(`${path} ${link.text}`)) paths.add(linkedUrl.toString());
       if (/sitemap/.test(`${path} ${link.text}`)) paths.add(linkedUrl.toString());
     }
-    if (![...paths].some((path) => /sitemap/i.test(path))) paths.add('/sitemap.xml');
-    for (const path of OPENAPI_PATHS) paths.add(path);
+    for (const link of linked.filter((x) => /sitemap/i.test(`${x.url} ${x.text}`)).slice(0, 1)) paths.add(link.url);
+    const apiIntent = (input.preferred_formats ?? []).includes('api') || /\bapi\b|endpoint|openapi|swagger|machine readable schema/i.test(input.goal);
+    if (apiIntent && !candidates.some((item) => item.route_type === 'openapi' && item.publisher_match !== 'search_discovered')) for (const path of OPENAPI_PATHS) paths.add(new URL(path, root.origin).toString());
     let rootAlreadyExposesOpenApi = false;
-    const linkedOpenApi = rankCandidates(candidates, input.preferred_formats ?? [], input.require_official)
+    const linkedOpenApi = rankCandidates(candidates, input.preferred_formats ?? [], input.require_official, input.goal)
       .find((route) => route.route_type === 'openapi' && route.machine_readable && route.score >= 0.92);
     if (linkedOpenApi) {
       try {
-        const remaining = NETWORK_LIMITS.totalTimeoutMs - (Date.now() - startedAt);
+        const remaining = Math.min(phaseDeadline() - Date.now(), NETWORK_LIMITS.totalTimeoutMs - (Date.now() - startedAt));
         if (remaining > 0) {
           await withTimeout(validateUrl(linkedOpenApi.url), remaining);
           validatedCandidateUrls.add(linkedOpenApi.url);
-          const linkedSpec = await readIfFetched(fetcher, linkedOpenApi.url, requests, counters, startedAt);
+          const linkedSpec = await readIfFetched(fetcher, linkedOpenApi.url, requests, counters, startedAt, phaseDeadline(), options.searchProvider ? DIRECT_REQUEST_CAP_WITH_SEARCH : NETWORK_LIMITS.maxHttpRequests);
           const candidateIndex = candidates.findIndex((route) => route.url === linkedOpenApi.url && route.route_type === 'openapi');
           if (linkedSpec) {
             const finalHost = new URL(linkedSpec.url).hostname.toLowerCase();
-            const publisherMatch = finalHost === suppliedHost?.toLowerCase() ? 'exact_domain' : 'linked_from_domain';
+            const publisherMatch = publisherRelationship(finalHost, suppliedHost ?? finalHost, true);
             const verifiedSpec = classifyProbe(linkedSpec.url, linkedSpec.body, String(linkedSpec.headers['content-type'] ?? ''), publisherMatch, 'Fetched an OpenAPI reference linked from the supplied site.', linkedSpec.status);
             if (candidateIndex >= 0) candidates.splice(candidateIndex, 1);
             if (verifiedSpec?.route_type === 'openapi') {
+              verifiedSpec.verification = 'content_verified';
               verifiedSpec.auth = authFromStatus(linkedSpec.status);
               candidates.push(verifiedSpec);
               validatedCandidateUrls.add(verifiedSpec.url);
@@ -254,39 +307,39 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
       } catch { /* unsafe or unresolved candidates never suppress the bounded probes */ }
     }
     for (const path of rootAlreadyExposesOpenApi ? [] : [...paths]) {
-      if (requests.length >= NETWORK_LIMITS.maxHttpRequests) break;
-      const url = new URL(path, root).toString();
+      if (requests.length >= (options.searchProvider ? DIRECT_REQUEST_CAP_WITH_SEARCH : NETWORK_LIMITS.maxHttpRequests)) break;
+      const url = path.startsWith('http') ? path : new URL(path, root.origin).toString();
       if (requests.includes(url)) continue;
       try {
-        const remaining = NETWORK_LIMITS.totalTimeoutMs - (Date.now() - startedAt);
+        const remaining = phaseDeadline() - Date.now();
         if (remaining <= 0) break;
         await withTimeout(validateUrl(url), remaining);
       } catch {
         limitations.push('A discovery probe was skipped because its URL did not pass public-address safety checks.');
         continue;
       }
-      const result = await readIfFetched(fetcher, url, requests, counters, startedAt);
+      const result = await readIfFetched(fetcher, url, requests, counters, startedAt, phaseDeadline(), options.searchProvider ? DIRECT_REQUEST_CAP_WITH_SEARCH : NETWORK_LIMITS.maxHttpRequests);
       if (!result) continue;
       const contentType = String(result.headers['content-type'] ?? '');
-      const responsePublisherMatch = new URL(result.url).hostname.toLowerCase() === suppliedHost?.toLowerCase() ? 'exact_domain' : 'linked_from_domain';
+      const responsePublisherMatch = publisherRelationship(new URL(result.url).hostname, suppliedHost ?? root.hostname, true);
       const candidateFromResponse = result.status >= 200 && result.status < 400 || result.status === 401 || result.status === 403
         ? classifyProbe(result.url, result.body, contentType, responsePublisherMatch, `Discovered via standard ${path} endpoint probe.`, result.status) : undefined;
       if (candidateFromResponse) { candidateFromResponse.auth = authFromStatus(result.status); candidates.push(candidateFromResponse); }
       const fetchedPath = new URL(result.url).pathname;
-      if (/sitemap/i.test(fetchedPath)) addSitemapCandidates(result.body, result.url, root.hostname, suppliedHost ?? root.hostname, candidates);
+      if (/sitemap/i.test(fetchedPath)) { addSitemapCandidates(result.body, result.url, root.hostname, suppliedHost ?? root.hostname, candidates); continue; }
       if (/robots\.txt/i.test(fetchedPath)) {
         for (const sitemap of [...result.body.matchAll(/^\s*Sitemap:\s*(\S+)/gim)].slice(0, 2)) {
           const sitemapUrl = absoluteHttpUrl(sitemap[1] ?? '', result.url);
           if (sitemapUrl) {
             try {
-              const remaining = NETWORK_LIMITS.totalTimeoutMs - (Date.now() - startedAt);
+    const remaining = Math.min(phaseDeadline() - Date.now(), NETWORK_LIMITS.totalTimeoutMs - (Date.now() - startedAt));
               if (remaining <= 0) break;
               await withTimeout(validateUrl(sitemapUrl), remaining);
             } catch {
               limitations.push('A sitemap URL was skipped because it did not pass public-address safety checks.');
               continue;
             }
-            const sitemapResult = await readIfFetched(fetcher, sitemapUrl, requests, counters, startedAt);
+            const sitemapResult = await readIfFetched(fetcher, sitemapUrl, requests, counters, startedAt, phaseDeadline(), options.searchProvider ? DIRECT_REQUEST_CAP_WITH_SEARCH : NETWORK_LIMITS.maxHttpRequests);
             if (sitemapResult) addSitemapCandidates(sitemapResult.body, sitemapResult.url, root.hostname, suppliedHost ?? root.hostname, candidates);
           }
         }
@@ -312,14 +365,15 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
     try {
       const candidateUrl = new URL(route.url);
       if (!['http:', 'https:'].includes(candidateUrl.protocol) || candidateUrl.username || candidateUrl.password) continue;
-      const remaining = NETWORK_LIMITS.totalTimeoutMs - (Date.now() - startedAt);
+              const remaining = Math.min(phaseDeadline() - Date.now(), NETWORK_LIMITS.totalTimeoutMs - (Date.now() - startedAt));
       if (remaining <= 0) throw new Error('Deadline reached.');
       await withTimeout(validateUrl(route.url), remaining);
       publicCandidates.push(route);
     } catch { limitations.push('A discovered candidate was omitted because its URL did not pass public-address safety checks.'); }
   }
-  let ranked = rankCandidates(publicCandidates, input.preferred_formats ?? [], input.require_official);
-  const useful = ranked.some((route) => route.machine_readable && !['structured_web', 'web'].includes(route.route_type)
+  let ranked = rankCandidates(publicCandidates, input.preferred_formats ?? [], input.require_official, input.goal);
+  for (const route of ranked) if (validatedCandidateUrls.has(route.url) || requests.includes(route.url)) route.verification = 'content_verified';
+  const useful = ranked.some((route) => route.machine_readable && route.verification === 'content_verified' && !['structured_web', 'web'].includes(route.route_type)
     && route.auth !== 'appears_required' && route.score >= 0.75 && route.publisher_match !== 'search_discovered');
   let source: DiscoveryMetrics['source'] = ranked.length ? 'direct' : 'none';
   if (!useful && options.searchProvider) {
@@ -339,10 +393,26 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
           safeHits.push(hit);
         } catch { /* hostile results are discarded */ }
       }
-      const eligibleHits = input.require_official ? safeHits.filter((hit) => suppliedHost && new URL(hit.url).hostname.toLowerCase() === suppliedHost.toLowerCase()) : safeHits;
+      const eligibleHits = input.require_official ? safeHits.filter((hit) => suppliedHost && publisherRelationship(new URL(hit.url).hostname, suppliedHost) !== 'search_discovered') : safeHits;
       if (input.require_official && !root) limitations.push('An official publisher cannot be matched without a supplied domain; search-discovered candidates were excluded.');
       else if (input.require_official && eligibleHits.length !== safeHits.length) limitations.push('Search results without a directly observed match to the supplied domain were excluded because official sources were required.');
-      ranked = rankCandidates(dedupeCandidates([...ranked, ...eligibleHits.map((hit) => searchHitCandidate(hit, suppliedHost))]), input.preferred_formats ?? [], input.require_official);
+      const searchCandidates = eligibleHits.map((hit) => searchHitCandidate(hit, suppliedHost));
+      let validationAllowance = Math.max(0, NETWORK_LIMITS.maxHttpRequests - requests.length);
+      for (const route of searchCandidates.slice().sort((a, b) => goalRelevance(input.goal, `${b.url} ${b.reasons.join(' ')}`) - goalRelevance(input.goal, `${a.url} ${a.reasons.join(' ')}`)).slice(0, 2)) {
+        if (validationAllowance <= 0) break;
+        try {
+          const remaining = NETWORK_LIMITS.totalTimeoutMs - (Date.now() - startedAt);
+          if (remaining <= 0) break;
+          await withTimeout(validateUrl(route.url), remaining);
+          const fetched = await readIfFetched(fetcher, route.url, requests, counters, startedAt, startedAt + NETWORK_LIMITS.totalTimeoutMs, NETWORK_LIMITS.maxHttpRequests);
+          validationAllowance = Math.max(0, NETWORK_LIMITS.maxHttpRequests - requests.length);
+          if (fetched) {
+            const verified = classifyProbe(fetched.url, fetched.body, String(fetched.headers['content-type'] ?? ''), route.publisher_match, 'Search result was fetched once for route validation.', fetched.status);
+            if (verified) { verified.auth = authFromStatus(fetched.status); searchCandidates.splice(searchCandidates.indexOf(route), 1, verified); }
+          }
+        } catch { /* keep the candidate as search-only when one-fetch validation is unavailable */ }
+      }
+      ranked = rankCandidates(dedupeCandidates([...ranked, ...searchCandidates]), input.preferred_formats ?? [], input.require_official, input.goal);
     } catch {
       providerFailure = true;
       limitations.push('External search fallback failed or was unavailable.');
@@ -350,7 +420,7 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
   }
   if (!options.searchProvider) limitations.push('External search fallback was unavailable because no search provider is configured; deterministic discovery was used.');
   if (Date.now() - startedAt > NETWORK_LIMITS.totalTimeoutMs) limitations.push('The total execution time limit was reached; remaining discovery was stopped.');
-  if (!input.domain && ranked.length === 0 && !options.searchProvider) limitations.push('Provide a domain or configure external search to discover candidate routes.');
+  if (!input.domain && !input.start_url && ranked.length === 0 && !options.searchProvider) limitations.push('Provide a domain or configure external search to discover candidate routes.');
   if (!ranked.length) limitations.push('No suitable route was found within checked scope; this does not establish that no route exists.');
 
   const routes = ranked.slice(0, Math.min(input.max_candidates, NETWORK_LIMITS.maxRoutes));
