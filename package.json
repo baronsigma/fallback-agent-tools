@@ -1,6 +1,6 @@
 {
   "name": "fallback-agent-tools",
-  "version": "0.1.0",
+  "version": "0.1.0-beta.1",
   "private": true,
   "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents.",
   "license": "MIT",
@@ -12,10 +12,12 @@
     "dev": "node --env-file-if-exists=.env --import tsx src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node --env-file-if-exists=.env dist/src/index.js",
+    "test:x402:e2e": "tsx scripts/test-x402-e2e.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "generate": "tsx scripts/generate-discovery.ts",
+    "generate:production": "node --env-file-if-exists=.env --import tsx scripts/generate-discovery.ts",
     "verify:catalog": "tsx scripts/verify-catalog.ts",
     "benchmark:source-route": "tsx scripts/benchmark-source-route.ts",
     "eval:source-route": "tsx scripts/eval-source-route.ts",
@@ -23,10 +25,11 @@
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",
-    "@x402/core": "^2.0.0",
-    "@x402/evm": "^2.0.0",
-    "@x402/express": "^2.0.0",
-    "@x402/extensions": "^2.0.0",
+    "@x402/core": "^2.28.0",
+    "@x402/evm": "^2.28.0",
+    "@x402/express": "^2.28.0",
+    "@x402/extensions": "^2.28.0",
+    "@x402/mcp": "^2.28.0",
     "express": "^5.1.0",
     "tldts": "^7.4.16",
     "zod": "^4.1.0"
@@ -35,10 +38,12 @@
     "@eslint/js": "^9.35.0",
     "@types/express": "^5.0.3",
     "@types/node": "^24.3.0",
+    "@x402/fetch": "^2.28.0",
     "eslint": "^9.35.0",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.42.0",
+    "viem": "^2.57.2",
     "vitest": "^3.2.4"
   }
 }

@@ -2,15 +2,15 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Fallback",
-    "version": "0.1.0",
-    "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem.",
+    "version": "0.1.0-beta.1",
+    "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents. source_route returns ranked candidate access routes, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence.",
     "license": {
       "name": "MIT"
     }
   },
   "servers": [
     {
-      "url": "https://fallback.example"
+      "url": "https://fallback.test"
     }
   ],
   "paths": {
@@ -18,13 +18,14 @@
       "post": {
         "operationId": "source_route",
         "summary": "source_route",
-        "description": "Find a practical, preferably authoritative and machine-readable route for obtaining information. Bounded deterministic discovery with at most one external search fallback.",
+        "description": "Return ranked candidate access routes for obtaining information, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence. Bounded discovery with at most one external search fallback.",
         "tags": [
           "source-discovery"
         ],
         "x-fallback-tool-id": "source_route",
         "x-fallback-status": "available",
         "x-fallback-price-usd": "0.02",
+        "x-fallback-x402-active": false,
         "requestBody": {
           "required": true,
           "content": {
@@ -93,97 +94,6 @@
                 }
               }
             }
-          },
-          "402": {
-            "description": "Payment required for an available paid tool."
-          },
-          "404": {
-            "description": "Tool is unknown or unavailable."
-          }
-        }
-      }
-    },
-    "/v1/tools/stop_search": {
-      "post": {
-        "operationId": "stop_search",
-        "summary": "stop_search",
-        "description": "Determine whether a bounded search has gathered enough negative evidence to reasonably stop. Planned and unavailable.",
-        "tags": [
-          "search-quality"
-        ],
-        "x-fallback-tool-id": "stop_search",
-        "x-fallback-status": "planned",
-        "x-fallback-price-usd": "0.02",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$schema": "https://json-schema.org/draft/2020-12/schema",
-                "type": "object",
-                "properties": {},
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Tool response envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ToolResponse"
-                }
-              }
-            }
-          },
-          "402": {
-            "description": "Payment required for an available paid tool."
-          },
-          "404": {
-            "description": "Tool is unknown or unavailable."
-          }
-        }
-      }
-    },
-    "/v1/tools/error_route": {
-      "post": {
-        "operationId": "error_route",
-        "summary": "error_route",
-        "description": "Classify an API or tool failure and recommend a bounded next action. Planned and unavailable.",
-        "tags": [
-          "tool-recovery"
-        ],
-        "x-fallback-tool-id": "error_route",
-        "x-fallback-status": "planned",
-        "x-fallback-price-usd": "0.002",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$schema": "https://json-schema.org/draft/2020-12/schema",
-                "type": "object",
-                "properties": {},
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Tool response envelope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ToolResponse"
-                }
-              }
-            }
-          },
-          "402": {
-            "description": "Payment required for an available paid tool."
           },
           "404": {
             "description": "Tool is unknown or unavailable."

@@ -14,7 +14,7 @@ describe('source_route shared handler', () => {
     };
     const handler = createSourceRouteHandler({ fetcher, validateUrl: async (value) => new URL(value) });
     const response = await handler({ goal: 'Find an API specification', domain: 'statistics.test' }, { requestId: 'request-fixture-1' });
-    expect(response).toMatchObject({ success: true, toolId: 'source_route', toolVersion: '0.1.0', requestId: 'request-fixture-1' });
+    expect(response).toMatchObject({ success: true, toolId: 'source_route', toolVersion: '0.1.0-beta.1', requestId: 'request-fixture-1' });
     if (!response.success) throw new Error('Expected successful tool response.');
     expect(response.result.routes[0]?.route_type).toBe('openapi');
     expect(response.execution.metrics).toEqual({ outboundHttpRequests: 4, paidSearchCalls: 0, discoverySource: 'direct', searchProvider: null });

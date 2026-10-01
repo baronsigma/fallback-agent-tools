@@ -1,8 +1,8 @@
 import { toolRegistry } from '../../core/registry.js';
 import { productMetadata } from '../../core/product.js';
 
-export function makeOpenApi(baseUrl: string): Record<string, unknown> {
-  const paths = Object.fromEntries(toolRegistry.map((tool) => [tool.httpRoute, {
+export function makeOpenApi(baseUrl: string, paymentConfigured = false): Record<string, unknown> {
+  const paths = Object.fromEntries(toolRegistry.filter((tool) => tool.availability === 'available').map((tool) => [tool.httpRoute, {
     post: {
       operationId: tool.id,
       summary: tool.publicName,
@@ -11,10 +11,11 @@ export function makeOpenApi(baseUrl: string): Record<string, unknown> {
       'x-fallback-tool-id': tool.id,
       'x-fallback-status': tool.availability,
       'x-fallback-price-usd': tool.priceUsd,
+      'x-fallback-x402-active': paymentConfigured && tool.x402.enabled && tool.availability === 'available',
       requestBody: { required: true, content: { 'application/json': { schema: tool.inputSchema.toJSONSchema({ io: 'input' }) } } },
       responses: {
         '200': { description: 'Tool response envelope', content: { 'application/json': { schema: { $ref: '#/components/schemas/ToolResponse' } } } },
-        '402': { description: 'Payment required for an available paid tool.' },
+        ...(paymentConfigured && tool.x402.enabled ? { '402': { description: 'Payment required for this available paid tool.' } } : {}),
         '404': { description: 'Tool is unknown or unavailable.' },
       },
     },

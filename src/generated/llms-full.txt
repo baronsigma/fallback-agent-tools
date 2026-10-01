@@ -1,18 +1,20 @@
 # Fallback
 
-Small pay-per-call utilities that resolve uncertainty for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem.
+Small pay-per-call utilities that resolve uncertainty for autonomous agents. source_route returns ranked candidate access routes, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence.
 
-Catalog: https://fallback.example/catalog.json
-MCP endpoint: https://fallback.example/mcp
+Catalog: https://fallback.test/catalog.json
+MCP endpoint: https://fallback.test/mcp (active Streamable HTTP)
+HTTP execution: active
+x402 payments: disabled mode
 
 ## Tools
 
 ### source_route
-Find a practical, preferably authoritative and machine-readable route for obtaining information. Bounded deterministic discovery with at most one external search fallback.
+Return ranked candidate access routes for obtaining information, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence. Bounded discovery with at most one external search fallback.
 Status: available
-Price: $0.02 USD per call
-HTTP: https://fallback.example/v1/tools/source_route
-MCP: inactive (reserved identifier: source_route)
+Price: $0.02 USD per call (x402 inactive)
+HTTP: https://fallback.test/v1/tools/source_route
+MCP: source_route
 Category: source-discovery
 Latency target: 12000 ms
 Input schema: {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"goal":{"type":"string","minLength":3,"maxLength":500},"domain":{"type":"string","maxLength":253,"format":"hostname","pattern":"^(?=.{1,253}\\.?$)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[-0-9a-zA-Z]{0,61}[0-9a-zA-Z])?)*\\.?$"},"start_url":{"type":"string","maxLength":2048},"preferred_formats":{"maxItems":7,"type":"array","items":{"type":"string","enum":["json","csv","xml","rss","api","bulk_download","html"]}},"require_official":{"default":false,"type":"boolean"},"max_candidates":{"default":5,"type":"integer","minimum":1,"maximum":10}},"required":["goal"],"additionalProperties":false}
@@ -22,9 +24,9 @@ Example: {"goal":"Download the latest population dataset","domain":"statistics.e
 ### stop_search
 Determine whether a bounded search has gathered enough negative evidence to reasonably stop. Planned and unavailable.
 Status: planned
-Price: $0.02 USD per call
-HTTP: https://fallback.example/v1/tools/stop_search
-MCP: inactive (reserved identifier: stop_search)
+Price: $0.02 USD per call (x402 inactive)
+HTTP: https://fallback.test/v1/tools/stop_search
+MCP: not callable (planned: stop_search)
 Category: search-quality
 Latency target: 1000 ms
 Input schema: {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{},"additionalProperties":false}
@@ -34,9 +36,9 @@ Example: {}
 ### error_route
 Classify an API or tool failure and recommend a bounded next action. Planned and unavailable.
 Status: planned
-Price: $0.002 USD per call
-HTTP: https://fallback.example/v1/tools/error_route
-MCP: inactive (reserved identifier: error_route)
+Price: $0.002 USD per call (x402 inactive)
+HTTP: https://fallback.test/v1/tools/error_route
+MCP: not callable (planned: error_route)
 Category: tool-recovery
 Latency target: 500 ms
 Input schema: {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{},"additionalProperties":false}

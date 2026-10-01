@@ -1,20 +1,20 @@
 product: "Fallback"
-version: 0.1.0
-description: "Small pay-per-call utilities that resolve uncertainty for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem."
+version: 0.1.0-beta.1
+description: "Small pay-per-call utilities that resolve uncertainty for autonomous agents. source_route returns ranked candidate access routes, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence."
 transports:
   http: active
-  mcp: inactive
+  mcp: active
 endpoints:
-  mcp: "https://fallback.example/mcp"
-  catalog: "https://fallback.example/catalog.json"
-  openapi: "https://fallback.example/openapi.json"
-  llms: "https://fallback.example/llms.txt"
-  llmsFull: "https://fallback.example/llms-full.txt"
-  serverCard: "https://fallback.example/.well-known/mcp/server-card.json"
-  x402: "https://fallback.example/.well-known/x402.json"
+  mcp: "https://fallback.test/mcp"
+  catalog: "https://fallback.test/catalog.json"
+  openapi: "https://fallback.test/openapi.json"
+  llms: "https://fallback.test/llms.txt"
+  llmsFull: "https://fallback.test/llms-full.txt"
+  serverCard: "https://fallback.test/.well-known/mcp/server-card.json"
+  x402: "https://fallback.test/.well-known/x402.json"
 tools:
   - id: source_route
-    version: 0.1.0
+    version: 0.1.0-beta.1
     name: source_route
     status: available
     httpRoute: /v1/tools/source_route
@@ -24,7 +24,7 @@ tools:
     smitheryServerId: source_route
     glamaServerId: source_route
   - id: stop_search
-    version: 0.1.0
+    version: 0.1.0-beta.1
     name: stop_search
     status: planned
     httpRoute: /v1/tools/stop_search
@@ -34,7 +34,7 @@ tools:
     smitheryServerId: stop_search
     glamaServerId: stop_search
   - id: error_route
-    version: 0.1.0
+    version: 0.1.0-beta.1
     name: error_route
     status: planned
     httpRoute: /v1/tools/error_route

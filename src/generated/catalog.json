@@ -1,27 +1,31 @@
 {
   "name": "Fallback",
-  "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem.",
-  "version": "0.1.0",
+  "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents. source_route returns ranked candidate access routes, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence.",
+  "version": "0.1.0-beta.1",
   "transports": {
     "http": "active",
-    "mcp": "inactive",
+    "mcp": "active",
     "payment": "disabled"
   },
+  "payment": {
+    "mode": "disabled",
+    "x402": false
+  },
   "endpoints": {
-    "mcp": "https://fallback.example/mcp",
-    "catalog": "https://fallback.example/catalog.json",
-    "openapi": "https://fallback.example/openapi.json",
-    "llms": "https://fallback.example/llms.txt",
-    "llmsFull": "https://fallback.example/llms-full.txt",
-    "serverCard": "https://fallback.example/.well-known/mcp/server-card.json",
-    "x402": "https://fallback.example/.well-known/x402.json"
+    "mcp": "https://fallback.test/mcp",
+    "catalog": "https://fallback.test/catalog.json",
+    "openapi": "https://fallback.test/openapi.json",
+    "llms": "https://fallback.test/llms.txt",
+    "llmsFull": "https://fallback.test/llms-full.txt",
+    "serverCard": "https://fallback.test/.well-known/mcp/server-card.json",
+    "x402": "https://fallback.test/.well-known/x402.json"
   },
   "tools": [
     {
       "id": "source_route",
-      "version": "0.1.0",
+      "version": "0.1.0-beta.1",
       "name": "source_route",
-      "description": "Find a practical, preferably authoritative and machine-readable route for obtaining information. Bounded deterministic discovery with at most one external search fallback.",
+      "description": "Return ranked candidate access routes for obtaining information, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence. Bounded discovery with at most one external search fallback.",
       "category": "source-discovery",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -232,8 +236,9 @@
       "latencyTargetMs": 12000,
       "x402": {
         "resourceType": "http",
-        "enabled": false,
-        "discoveryExtension": "bazaar"
+        "enabled": true,
+        "discoveryExtension": "bazaar",
+        "active": false
       },
       "distribution": {
         "apifyActorId": "fallback/source-route",
@@ -243,7 +248,7 @@
     },
     {
       "id": "stop_search",
-      "version": "0.1.0",
+      "version": "0.1.0-beta.1",
       "name": "stop_search",
       "description": "Determine whether a bounded search has gathered enough negative evidence to reasonably stop. Planned and unavailable.",
       "category": "search-quality",
@@ -284,7 +289,8 @@
       "x402": {
         "resourceType": "http",
         "enabled": false,
-        "discoveryExtension": "bazaar"
+        "discoveryExtension": "bazaar",
+        "active": false
       },
       "distribution": {
         "apifyActorId": "fallback/stop-search",
@@ -294,7 +300,7 @@
     },
     {
       "id": "error_route",
-      "version": "0.1.0",
+      "version": "0.1.0-beta.1",
       "name": "error_route",
       "description": "Classify an API or tool failure and recommend a bounded next action. Planned and unavailable.",
       "category": "tool-recovery",
@@ -335,7 +341,8 @@
       "x402": {
         "resourceType": "http",
         "enabled": false,
-        "discoveryExtension": "bazaar"
+        "discoveryExtension": "bazaar",
+        "active": false
       },
       "distribution": {
         "apifyActorId": "fallback/error-route",

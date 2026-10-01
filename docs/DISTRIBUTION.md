@@ -20,6 +20,6 @@ Marketplace descriptions and tool identifiers should be generated from the canon
 ## Platform notes
 
 - x402 Bazaar discovery is sent through the x402 Bazaar extension on an enabled payable endpoint. This repository's local `/.well-known/x402.json` is a Fallback-owned readiness document, not an official x402 schema.
-- MCP Registry `server.json` follows the official schema and must be validated before publish. The generated namespace is provisional until the repository owner and domain are settled.
+- MCP Registry `server.json` uses the GitHub owner namespace `io.github.baronsigma/fallback-agent-tools`; validate the current registry schema and publisher authorization before any publish.
 - Apify Pay-Per-Event is a mirror, not the canonical implementation or source of price definitions.
 - Smithery and Glama are secondary discovery listings. Their generated metadata references the canonical MCP server and tool IDs.

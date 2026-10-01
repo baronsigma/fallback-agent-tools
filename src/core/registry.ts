@@ -29,16 +29,16 @@ export type ToolRecord = {
 
 export const toolRegistry: readonly ToolRecord[] = [
   {
-    id: 'source_route', version: '0.1.0', publicName: 'source_route',
-    description: 'Find a practical, preferably authoritative and machine-readable route for obtaining information. Bounded deterministic discovery with at most one external search fallback.',
+    id: 'source_route', version: '0.1.0-beta.1', publicName: 'source_route',
+    description: 'Return ranked candidate access routes for obtaining information, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence. Bounded discovery with at most one external search fallback.',
     category: 'source-discovery', inputSchema: sourceRouteInputSchema, outputSchema: sourceRouteOutputSchema,
     priceUsd: '0.02', availability: 'available', httpRoute: '/v1/tools/source_route', mcpName: 'source_route',
     examples: [{ title: 'Find a machine-readable route', input: { goal: 'Download the latest population dataset', domain: 'statistics.example' }, expected: 'routes_found or no_suitable_route_found within checked scope' }],
-    latencyTargetMs: 12000, x402: { resourceType: 'http', enabled: false, discoveryExtension: 'bazaar' },
+    latencyTargetMs: 12000, x402: { resourceType: 'http', enabled: true, discoveryExtension: 'bazaar' },
     distribution: { apifyActorId: 'fallback/source-route', smitheryServerId: 'source_route', glamaServerId: 'source_route' },
   },
   {
-    id: 'stop_search', version: '0.1.0', publicName: 'stop_search',
+    id: 'stop_search', version: '0.1.0-beta.1', publicName: 'stop_search',
     description: 'Determine whether a bounded search has gathered enough negative evidence to reasonably stop. Planned and unavailable.',
     category: 'search-quality', inputSchema: emptyInput, outputSchema: genericOutput,
     priceUsd: '0.02', availability: 'planned', httpRoute: '/v1/tools/stop_search', mcpName: 'stop_search',
@@ -47,7 +47,7 @@ export const toolRegistry: readonly ToolRecord[] = [
     distribution: { apifyActorId: 'fallback/stop-search', smitheryServerId: 'stop_search', glamaServerId: 'stop_search' },
   },
   {
-    id: 'error_route', version: '0.1.0', publicName: 'error_route',
+    id: 'error_route', version: '0.1.0-beta.1', publicName: 'error_route',
     description: 'Classify an API or tool failure and recommend a bounded next action. Planned and unavailable.',
     category: 'tool-recovery', inputSchema: emptyInput, outputSchema: genericOutput,
     priceUsd: '0.002', availability: 'planned', httpRoute: '/v1/tools/error_route', mcpName: 'error_route',

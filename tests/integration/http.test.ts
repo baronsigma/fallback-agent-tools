@@ -5,16 +5,28 @@ import type { SafeFetcher } from '../../src/core/safe-fetch.js';
 import { createSourceRouteHandler } from '../../src/tools/source-route/handler.js';
 import { toolRegistry } from '../../src/core/registry.js';
 
+async function parseMcpResponse(response: Response): Promise<Record<string, unknown>> {
+  const body = await response.text();
+  if (response.headers.get('content-type')?.includes('text/event-stream')) {
+    const data = body.split(/\r?\n/).filter((line) => line.startsWith('data:')).map((line) => line.slice(5).trim()).at(-1);
+    if (!data) throw new Error(`MCP response had no event data: ${body}`);
+    return JSON.parse(data) as Record<string, unknown>;
+  }
+  return JSON.parse(body) as Record<string, unknown>;
+}
+
 describe('public HTTP scaffold', () => {
   it('provides health and discovery endpoints and denies planned execution', async () => {
+    let publisherFetches = 0;
     const fetcher: SafeFetcher = {
       async fetch(url, onRequest) {
+        publisherFetches += 1;
         onRequest(url);
         const spec = url.endsWith('/openapi.json');
         return { url, status: 200, headers: { 'content-type': spec ? 'application/json' : 'text/html' }, body: spec ? '{"openapi":"3.1.0","paths":{}}' : '<a href="/openapi.json">OpenAPI specification</a>' };
       },
     };
-    const app = createHttpApp(loadConfig({ PUBLIC_BASE_URL: 'https://fallback.example', PORT: '3000', NODE_ENV: 'test' }), { sourceRouteHandler: createSourceRouteHandler({ fetcher, validateUrl: async (value) => new URL(value) }) });
+    const app = createHttpApp(loadConfig({ PUBLIC_BASE_URL: 'https://fallback.test', PORT: '3000', NODE_ENV: 'test' }), { sourceRouteHandler: createSourceRouteHandler({ fetcher, validateUrl: async (value) => new URL(value) }) });
     const server = app.listen(0);
     try {
       const address = server.address();
@@ -48,13 +60,24 @@ describe('public HTTP scaffold', () => {
       const direct = await fetch(`${base}/v1/tools/source_route`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ goal: 'Find schema', domain: 'statistics.test' }) });
       expect(direct.status).toBe(200);
       expect((await direct.json()).result.routes[0].route_type).toBe('openapi');
+      const beforeMcp = publisherFetches;
       const invalidInput = await fetch(`${base}/v1/tools/source_route`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ goal: 'Find records', domain: '127.0.0.1' }) });
       expect(invalidInput.status).toBe(400);
       const unavailable = await fetch(`${base}/v1/tools/stop_search`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
       expect(unavailable.status).toBe(404);
-      const mcp = await fetch(`${base}/mcp`);
-      expect(mcp.status).toBe(501);
-      expect((await mcp.json()).error).toBe('The MCP transport is not yet enabled.');
+      const list = await fetch(`${base}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }) });
+      expect(list.status).toBe(200);
+      const toolsList = await parseMcpResponse(list) as unknown as { result: { tools: Array<{ name: string; inputSchema: unknown; outputSchema?: unknown }> } };
+      expect(toolsList.result.tools.map((tool) => tool.name)).toEqual(['source_route']);
+      expect(toolsList.result.tools[0]?.inputSchema).toMatchObject(toolRegistry[0]!.inputSchema.toJSONSchema({ io: 'input' }));
+      expect(toolsList.result.tools[0]?.outputSchema).toMatchObject(toolRegistry[0]!.outputSchema.toJSONSchema());
+      const mcpExecution = await fetch(`${base}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'source_route', arguments: { goal: 'Find schema', domain: 'statistics.test' } } }) });
+      expect(mcpExecution.status).toBe(200);
+      const mcpResult = await parseMcpResponse(mcpExecution) as unknown as { result: { structuredContent: { status: string }; _meta: { fallback: { requestId: string; execution: unknown } } } };
+      expect(mcpResult.result.structuredContent.status).toBe('routes_found');
+      expect(mcpResult.result._meta.fallback.requestId).toBeTruthy();
+      expect(mcpResult.result._meta.fallback.execution).toBeDefined();
+      expect(publisherFetches).toBeGreaterThan(beforeMcp);
     } finally {
       await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     }

@@ -12,14 +12,14 @@ Fallback does not replace agent reasoning. Each service should answer a narrow o
 
 | Tool | Purpose | Initial price | Status |
 |---|---|---:|---|
-| `source_route` | Find a practical, preferably authoritative and machine-readable access path | $0.02 | Available (beta) |
+| `source_route` | Return ranked candidate access routes, preferably authoritative and machine-readable where possible | $0.02 | Available (beta) |
 | `stop_search` | Decide whether a bounded negative search can reasonably stop | $0.02 | Planned |
 | `error_route` | Classify a tool/API error and select a next action | $0.002 | Planned |
 
 These values are canonicalized in `src/core/registry.ts`. `stop_search` and `error_route` have no behavioral implementation yet.
 
-`source_route` inspects a supplied domain's root, a short list of standard discovery endpoints, linked OpenAPI/feed/download references, `robots.txt` sitemap declarations, `llms.txt`, and sitemap entries. When no sufficiently useful direct route is found, it may use at most one configured external search request. Tavily is the preferred MVP provider; Brave remains supported. External search is optional. It does not use LLM inference or claim that an undiscovered route does not exist.
+`source_route` starts at a supplied `start_url` (including its path) or at a supplied domain, then inspects a bounded set of publisher and standard discovery references. When no sufficiently useful direct route is found, it may use at most one configured external search request. Tavily and Brave are supported; external search is optional. It does not use LLM inference, guarantee one canonical route, or claim that an undiscovered route does not exist.
 
 ## Access model
 
-The target production model is anonymous pay-per-call access using x402. No account or API key should be required. Payment acceptance and settlement remain disabled until deployment configuration and end-to-end payment verification are completed.
+The service supports anonymous x402 V2 pay-per-call access. The price comes from the canonical registry. `PAYMENT_MODE=disabled` is for local development; `test` uses Base Sepolia (`eip155:84532`); `production` uses Base (`eip155:8453`). Production/mainnet remains operationally disabled until deployment configuration and a successful deployed test payment have been verified. No account or API key is required.

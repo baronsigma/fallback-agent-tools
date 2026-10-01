@@ -2,41 +2,46 @@ import { writeFile } from 'node:fs/promises';
 import { toolRegistry, validateRegistry } from '../src/core/registry.js';
 import { productMetadata } from '../src/core/product.js';
 import { getCatalog, getLlmsText } from '../src/surfaces/http/app.js';
+import { loadConfig } from '../src/core/config.js';
 import { makeOpenApi } from '../src/surfaces/http/openapi.js';
 import { makeServerCard } from '../src/surfaces/mcp/card.js';
 import { makeX402Discovery } from '../src/surfaces/x402/discovery.js';
 import { resolve } from 'node:path';
 
-const baseUrl = process.env['PUBLIC_BASE_URL'] ?? productMetadata.websiteUrl;
+const generatorEnv: NodeJS.ProcessEnv = { ...process.env };
+if (!generatorEnv['PUBLIC_BASE_URL'] && generatorEnv['NODE_ENV'] !== 'production') generatorEnv['PUBLIC_BASE_URL'] = 'https://fallback.test';
+if (!generatorEnv['NODE_ENV']) generatorEnv['NODE_ENV'] = 'test';
+const config = loadConfig(generatorEnv);
+const baseUrl = config.publicBaseUrl;
 validateRegistry();
-const catalog = getCatalog(baseUrl);
-const openapi = makeOpenApi(baseUrl);
+const catalog = getCatalog(baseUrl, config);
+const openapi = makeOpenApi(baseUrl, config.paymentConfigured);
 const card = makeServerCard(baseUrl);
-const x402 = makeX402Discovery(baseUrl);
+const x402 = makeX402Discovery(baseUrl, config);
 const distribution = {
   product: productMetadata.name,
   version: productMetadata.version,
   description: productMetadata.description,
   endpoints: Object.fromEntries(Object.entries(productMetadata.endpoints).map(([key, path]) => [key, `${baseUrl}${path}`])),
-  transports: productMetadata.transports,
+  transports: { httpEnabled: true, mcpEnabled: true, paymentMode: config.paymentMode },
   pricing: Object.fromEntries(toolRegistry.map((tool) => [tool.id, { amount: tool.priceUsd, currency: 'USD', model: 'pay-per-call' }])),
   tools: toolRegistry.map((tool) => ({ id: tool.id, name: tool.publicName, status: tool.availability, mcpName: tool.mcpName, httpRoute: tool.httpRoute, marketplaceIds: tool.distribution })),
 };
 const serverJson = {
   $schema: 'https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json',
-  name: 'com.fallback.agent-tools',
+  name: 'io.github.baronsigma/fallback-agent-tools',
   description: productMetadata.description,
   title: productMetadata.name,
-  websiteUrl: productMetadata.websiteUrl,
+  websiteUrl: baseUrl,
   repository: { url: productMetadata.repositoryUrl, source: 'github' },
   version: productMetadata.version,
-  ...(productMetadata.transports.mcpEnabled ? { remotes: [{ type: 'streamable-http', url: `${baseUrl}/mcp` }] } : {}),
-  _meta: { 'io.modelcontextprotocol.registry/publisher-provided': { pricingModel: 'x402-pay-per-call', catalogUrl: `${baseUrl}/catalog.json` } },
+  remotes: [{ type: 'streamable-http', url: `${baseUrl}/mcp` }],
+  _meta: { 'io.modelcontextprotocol.registry/publisher-provided': { pricingModel: 'x402-pay-per-call', paymentActive: config.paymentConfigured, catalogUrl: `${baseUrl}/catalog.json` } },
 };
 const apify = { actorId: 'fallback/agent-tools', title: productMetadata.name, description: productMetadata.description, pricing: 'Pay per event; per-tool USD prices are in distribution/canonical.yaml.', tools: distribution.tools };
 const listings = {
-  smithery: { name: 'fallback-agent-tools', description: productMetadata.description, transportStatus: productMetadata.transports.mcpEnabled ? 'active' : 'inactive', ...(productMetadata.transports.mcpEnabled ? { mcpUrl: `${baseUrl}/mcp` } : {}), tools: distribution.tools },
-  glama: { name: 'Fallback', description: productMetadata.description, transportStatus: productMetadata.transports.mcpEnabled ? 'active' : 'inactive', ...(productMetadata.transports.mcpEnabled ? { mcpUrl: `${baseUrl}/mcp` } : {}), tools: distribution.tools },
+  smithery: { name: 'fallback-agent-tools', description: productMetadata.description, transportStatus: 'active', mcpUrl: `${baseUrl}/mcp`, paymentMode: config.paymentMode, tools: distribution.tools },
+  glama: { name: 'Fallback', description: productMetadata.description, transportStatus: 'active', mcpUrl: `${baseUrl}/mcp`, paymentMode: config.paymentMode, tools: distribution.tools },
 };
 const yaml = [
   `product: ${JSON.stringify(distribution.product)}`,
@@ -44,7 +49,7 @@ const yaml = [
   `description: ${JSON.stringify(distribution.description)}`,
   'transports:',
   `  http: ${productMetadata.transports.httpEnabled ? 'active' : 'inactive'}`,
-  `  mcp: ${productMetadata.transports.mcpEnabled ? 'active' : 'inactive'}`,
+  `  mcp: active`,
   'endpoints:',
   ...Object.entries(distribution.endpoints).map(([key, value]) => `  ${key}: ${JSON.stringify(value)}`),
   'tools:',
@@ -76,5 +81,5 @@ for (const [path, data] of Object.entries(outputs)) {
   const content = typeof data === 'string' ? data : `${JSON.stringify(data, null, 2)}\n`;
   await writeFile(resolve(path), content, 'utf8');
 }
-await writeFile(resolve('src/generated/llms.txt'), getLlmsText(baseUrl), 'utf8');
-await writeFile(resolve('src/generated/llms-full.txt'), getLlmsText(baseUrl, true), 'utf8');
+await writeFile(resolve('src/generated/llms.txt'), getLlmsText(baseUrl, false, config), 'utf8');
+await writeFile(resolve('src/generated/llms-full.txt'), getLlmsText(baseUrl, true, config), 'utf8');

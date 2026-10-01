@@ -1,7 +1,7 @@
 {
   "actorId": "fallback/agent-tools",
   "title": "Fallback",
-  "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem.",
+  "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents. source_route returns ranked candidate access routes, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence.",
   "pricing": "Pay per event; per-tool USD prices are in distribution/canonical.yaml.",
   "tools": [
     {
