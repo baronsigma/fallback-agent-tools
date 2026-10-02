@@ -8,8 +8,6 @@ export const productMetadata = {
     mcp: '/mcp',
     catalog: '/catalog.json',
     openapi: '/openapi.json',
-    llms: '/llms.txt',
-    llmsFull: '/llms-full.txt',
     serverCard: '/.well-known/mcp/server-card.json',
     x402: '/.well-known/x402.json',
   },

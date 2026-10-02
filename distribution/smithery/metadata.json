@@ -2,7 +2,7 @@
   "name": "fallback-agent-tools",
   "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents. source_route returns ranked candidate access routes, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence.",
   "transportStatus": "active",
-  "mcpUrl": "https://fallback.test/mcp",
+  "mcpUrl": "https://factrail.online/mcp",
   "paymentMode": "disabled",
   "tools": [
     {

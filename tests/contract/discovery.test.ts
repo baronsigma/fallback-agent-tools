@@ -5,7 +5,7 @@ import { getCatalog } from '../../src/surfaces/http/app.js';
 import { makeOpenApi } from '../../src/surfaces/http/openapi.js';
 import { toolRegistry } from '../../src/core/registry.js';
 
-const baseUrl = 'https://fallback.test';
+const baseUrl = process.env['PUBLIC_BASE_URL'] ?? 'https://fallback.test';
 
 describe('generated projections', () => {
   it('keeps HTTP and MCP identifiers tied to the registry', () => {
@@ -31,7 +31,7 @@ describe('generated projections', () => {
   it('is deterministic across generator runs', async () => {
     const before = await Promise.all(['src/generated/catalog.json', 'src/generated/openapi.json', 'src/generated/llms.txt', 'src/generated/llms-full.txt', 'src/generated/x402.json', 'src/generated/server-card.json', 'distribution/canonical.yaml', 'distribution/mcp-registry/server.json', 'distribution/apify/metadata.json', 'distribution/smithery/metadata.json', 'distribution/glama/metadata.json'].map((file) => readFile(resolve(file), 'utf8')));
     const { execFileSync } = await import('node:child_process');
-    execFileSync('npm', ['run', 'generate'], { stdio: 'ignore' });
+    execFileSync('npm', ['run', 'generate'], { stdio: 'ignore', env: { ...process.env, PUBLIC_BASE_URL: baseUrl } });
     const after = await Promise.all(['src/generated/catalog.json', 'src/generated/openapi.json', 'src/generated/llms.txt', 'src/generated/llms-full.txt', 'src/generated/x402.json', 'src/generated/server-card.json', 'distribution/canonical.yaml', 'distribution/mcp-registry/server.json', 'distribution/apify/metadata.json', 'distribution/smithery/metadata.json', 'distribution/glama/metadata.json'].map((file) => readFile(resolve(file), 'utf8')));
     expect(after).toEqual(before);
   });

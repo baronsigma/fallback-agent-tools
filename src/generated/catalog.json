@@ -12,13 +12,11 @@
     "x402": false
   },
   "endpoints": {
-    "mcp": "https://fallback.test/mcp",
-    "catalog": "https://fallback.test/catalog.json",
-    "openapi": "https://fallback.test/openapi.json",
-    "llms": "https://fallback.test/llms.txt",
-    "llmsFull": "https://fallback.test/llms-full.txt",
-    "serverCard": "https://fallback.test/.well-known/mcp/server-card.json",
-    "x402": "https://fallback.test/.well-known/x402.json"
+    "mcp": "https://factrail.online/mcp",
+    "catalog": "https://factrail.online/catalog.json",
+    "openapi": "https://factrail.online/openapi.json",
+    "serverCard": "https://factrail.online/.well-known/mcp/server-card.json",
+    "x402": "https://factrail.online/.well-known/x402.json"
   },
   "tools": [
     {
