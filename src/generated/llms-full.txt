@@ -8,14 +8,20 @@ Catalog: https://fallback.factrail.online/catalog.json
 MCP endpoint: https://fallback.factrail.online/mcp (active Streamable HTTP)
 Agent skill: https://fallback.factrail.online/skill.md
 HTTP execution: active
-x402 payments: test mode
+x402 payments: TEST mode (eip155:84532, Base Sepolia testnet, testnet USDC; mainnet is not enabled)
+Source (MIT): https://github.com/baronsigma/fallback-agent-tools
+
+## When to use
+- Use source_route when you know what information you need but not where to retrieve it in machine-readable form; do not use it for general research or fact verification.
+- Use error_route after an API, HTTP, MCP, or tool request fails when the safe next action is unclear; do not use it when recovery is obvious or requires deeper domain reasoning.
+- Read error_route evidence and limitations. It classifies supplied information only; it does not execute requests or claim undocumented fixes.
 
 ## Tools
 
 ### source_route
 Find likely authoritative or machine-readable sources when you know what information you need but not where to retrieve it. Provide a goal and optional publisher domain or start URL; it returns ranked candidate routes and bounded evidence. Use it before blind searching. Do not use it when you already have the correct source or only need reasoning over supplied context.
 Status: available
-Price: $0.02 USD per call (x402 active)
+Price: $0.02 USD per call (x402 testnet)
 HTTP: https://fallback.factrail.online/v1/tools/source_route
 MCP: source_route
 Category: source-discovery
@@ -39,7 +45,7 @@ Example: {}
 ### error_route
 Diagnose a failed API, HTTP, MCP, or tool request and return a structured, bounded next action. Use it after a request fails instead of repeatedly retrying or spending a large reasoning loop diagnosing common errors. Provide a status, response, or error text; it does not execute requests or verify undocumented fixes.
 Status: available
-Price: $0.002 USD per call (x402 active)
+Price: $0.002 USD per call (x402 testnet)
 HTTP: https://fallback.factrail.online/v1/tools/error_route
 MCP: error_route
 Category: recovery
@@ -47,3 +53,6 @@ Latency target: 50 ms
 Input schema: {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"goal":{"type":"string","minLength":1,"maxLength":500},"request":{"type":"object","properties":{"method":{"type":"string","maxLength":16},"url":{"type":"string","maxLength":2048},"headers":{"type":"object","propertyNames":{"type":"string","maxLength":128},"additionalProperties":{"type":"string","maxLength":2048}},"body":{}},"additionalProperties":false},"response":{"type":"object","properties":{"status":{"type":"integer","minimum":100,"maximum":599},"headers":{"type":"object","propertyNames":{"type":"string","maxLength":128},"additionalProperties":{"type":"string","maxLength":2048}},"body":{"type":"string","maxLength":8192}},"additionalProperties":false},"error":{"type":"string","maxLength":2048},"attempt":{"type":"integer","minimum":1,"maximum":100}},"additionalProperties":false}
 Output schema: {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"classification":{"type":"string","enum":["authentication_required","authorization_denied","rate_limited","quota_exhausted","payment_required","payment_failed","schema_mismatch","invalid_input","not_found","method_not_allowed","unsupported_media_type","timeout","connection_failure","dns_failure","tls_failure","upstream_failure","service_unavailable","conflict","stale_state","malformed_response","blocked_or_challenged","unknown"]},"retry":{"type":"string","enum":["never","immediate","after_delay","after_change","after_auth","after_payment","unknown"]},"safe_to_retry":{"type":"boolean"},"next_action":{"type":"object","properties":{"type":{"type":"string","enum":["modify_request","inspect_schema","wait","authenticate","change_endpoint","reduce_rate","pay","stop_retrying","escalate","unknown"]},"instruction":{"type":"string","minLength":1,"maxLength":240},"changes":{"maxItems":4,"type":"array","items":{"type":"string","maxLength":160}}},"required":["type","instruction","changes"],"additionalProperties":false},"confidence":{"type":"number","minimum":0,"maximum":1},"evidence":{"maxItems":8,"type":"array","items":{"type":"object","properties":{"signal":{"type":"string","maxLength":40},"value":{"anyOf":[{"type":"string","maxLength":160},{"type":"number"},{"type":"boolean"}]}},"required":["signal","value"],"additionalProperties":false}},"limits":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":180}},"tool_version":{"type":"string"}},"required":["classification","retry","safe_to_retry","next_action","confidence","evidence","limits","tool_version"],"additionalProperties":false}
 Example: {"goal":"Retrieve a company profile","request":{"method":"POST","url":"https://api.example/company"},"response":{"status":400,"body":"current_company_domain is not a valid field"}}
+
+## Related
+- FACTRAIL MCP: https://factrail.online/llms.txt. Separate service for source-backed facts with support levels, unresolved fields, and receipts.

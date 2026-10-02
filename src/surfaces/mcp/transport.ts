@@ -12,7 +12,7 @@ export function createMcpHandler(config: AppConfig, registry: readonly ToolRecor
   return createMcpHandlerSdk(() => {
     const server = new McpServer({ name: productMetadata.productId, version: productMetadata.version });
     for (const tool of registry.filter((entry) => entry.availability === 'available')) {
-      const description = `${tool.description} Price: $${tool.priceUsd} USD per call${config.paymentMode === 'disabled' ? ' (x402 payment currently disabled).' : ' via x402.'}`;
+      const description = `${tool.description} Price: $${tool.priceUsd} USD per call${config.paymentMode === 'disabled' ? ' (x402 payment currently disabled).' : config.paymentMode === 'test' ? ' via x402 (Base Sepolia testnet during beta).' : ' via x402.'}`;
       const execute = async (input: Record<string, unknown>) => {
         const requestId = randomUUID();
         let response;

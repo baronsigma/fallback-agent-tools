@@ -1,6 +1,6 @@
 product: "Fallback"
 version: 0.1.0-beta.1
-description: "Small pay-per-call utilities that resolve uncertainty for autonomous agents. source_route returns ranked candidate access routes, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence."
+description: "Small pay-per-call recovery utilities for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem."
 transports:
   http: active
   mcp: active
@@ -10,6 +10,7 @@ endpoints:
   openapi: "https://fallback.factrail.online/openapi.json"
   serverCard: "https://fallback.factrail.online/.well-known/mcp/server-card.json"
   x402: "https://fallback.factrail.online/.well-known/x402.json"
+  skill: "https://fallback.factrail.online/skill.md"
 tools:
   - id: source_route
     version: 0.1.0-beta.1
@@ -34,7 +35,7 @@ tools:
   - id: error_route
     version: 0.1.0-beta.1
     name: error_route
-    status: planned
+    status: available
     httpRoute: /v1/tools/error_route
     mcpName: error_route
     priceUsd: "0.002"

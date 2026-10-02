@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.baronsigma/fallback-agent-tools",
-  "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents. source_route returns ranked candidate access routes, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence.",
+  "description": "Small pay-per-call recovery utilities for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem.",
   "title": "Fallback",
   "websiteUrl": "https://fallback.factrail.online",
   "repository": {
@@ -19,6 +19,9 @@
     "io.modelcontextprotocol.registry/publisher-provided": {
       "pricingModel": "x402-pay-per-call",
       "paymentActive": true,
+      "paymentMode": "test",
+      "paymentNetwork": "eip155:84532",
+      "paymentNote": "TEST mode (eip155:84532, Base Sepolia testnet, testnet USDC; mainnet is not enabled)",
       "catalogUrl": "https://fallback.factrail.online/catalog.json"
     }
   }

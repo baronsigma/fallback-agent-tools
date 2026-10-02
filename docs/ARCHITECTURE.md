@@ -14,6 +14,8 @@ An unavailable tool is denied before its handler can run. An available paid tool
 
 `source_route` returns ranked candidate access routes and does not promise a unique canonical result. It starts at a supplied `start_url` (preserving its path and query) or at a supplied domain. It calls a shared safe-fetch utility that permits only HTTP/HTTPS to public addresses, revalidates redirects, pins a validated DNS result for the connection, limits request/response size, and enforces time budgets. Deterministic discovery runs first. If it finds no sufficiently useful direct route, the `SearchProvider` abstraction permits at most one external query using the explicitly selected provider. Tavily and Brave are supported; no provider is required.
 
+`error_route` is a local deterministic classifier for failed HTTP, API, MCP, and tool requests. It consumes bounded caller-supplied status, headers, response text, and runtime error codes; redacts credential-like values; and returns a stable classification with conservative retry guidance. It makes no network request, does not call an LLM, and never executes the request being diagnosed.
+
 `/mcp` is active Streamable HTTP. The current official MCP server package constructs a per-request server instance and derives callable tools from the canonical registry. HTTP and MCP both dispatch through the same runtime handler registry. In paid modes, official `@x402/express` middleware protects the HTTP route and official `@x402/mcp` wraps MCP tool calls using the x402 MCP payment exchange; both prices derive from the same registry record.
 
 Payment modes are explicit: `disabled` permits local uncharged execution, `test` accepts Base Sepolia (`eip155:84532`), and `production` accepts Base mainnet (`eip155:8453`). Paid startup validates all configuration and initializes the configured facilitator before listening. No private receiving key is required. The external search or publisher fetch handler is unreachable until the relevant x402 verification/settlement path allows execution.
@@ -26,7 +28,7 @@ Success and failure responses share `success`, `toolId`, `toolVersion`, `request
 
 ## Discovery and standards
 
-- `/catalog.json`, `/openapi.json`, `/llms.txt`, and `/llms-full.txt` are Fallback projections.
+- `/catalog.json`, `/openapi.json`, `/llms.txt`, `/llms-full.txt`, and `/skill.md` are Fallback projections.
 - MCP Registry `server.json` uses the official registry server schema version dated 2025-12-11.
 - The MCP Server Card follows the published MCP Server Card v1 schema and well-known URI. This surface is supplemental discovery metadata; server-card work is tracked separately from the MCP core tools protocol.
 - x402 Bazaar discovery uses the official `bazaar` extension on payable route declarations. It is not a standalone catalog file format. `/.well-known/x402.json` is Fallback's own readiness and canonical metadata projection, not a claimed x402-standard endpoint.

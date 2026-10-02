@@ -11,7 +11,8 @@
   },
   "payment": {
     "mode": "test",
-    "x402": true
+    "x402": true,
+    "network": "eip155:84532"
   },
   "endpoints": {
     "mcp": "https://fallback.factrail.online/mcp",
