@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { toolRegistry, validateRegistry } from '../src/core/registry.js';
 import { productMetadata } from '../src/core/product.js';
-import { getCatalog, getLlmsText } from '../src/surfaces/http/app.js';
+import { getCatalog, getLlmsText, paymentModeSummary } from '../src/surfaces/http/app.js';
 import { loadConfig } from '../src/core/config.js';
 import { makeOpenApi } from '../src/surfaces/http/openapi.js';
 import { makeServerCard } from '../src/surfaces/mcp/card.js';
@@ -37,7 +37,7 @@ const serverJson = {
   repository: { url: productMetadata.repositoryUrl, source: 'github' },
   version: productMetadata.version,
   remotes: [{ type: 'streamable-http', url: `${baseUrl}/mcp` }],
-  _meta: { 'io.modelcontextprotocol.registry/publisher-provided': { pricingModel: 'x402-pay-per-call', paymentActive: config.paymentConfigured, catalogUrl: `${baseUrl}/catalog.json` } },
+  _meta: { 'io.modelcontextprotocol.registry/publisher-provided': { pricingModel: 'x402-pay-per-call', paymentActive: config.paymentConfigured, paymentMode: config.paymentMode, ...(config.paymentMode === 'disabled' ? {} : { paymentNetwork: productMetadata.paymentNetworks[config.paymentMode].network, paymentNote: paymentModeSummary(config.paymentMode) }), catalogUrl: `${baseUrl}/catalog.json` } },
 };
 const apify = { actorId: 'fallback/agent-tools', title: productMetadata.name, description: productMetadata.description, pricing: 'Pay per event; per-tool USD prices are in distribution/canonical.yaml.', tools: distribution.tools };
 const listings = {
@@ -89,4 +89,5 @@ for (const [path, data] of Object.entries(outputs)) {
   await writeOutput(path, content);
 }
 await writeOutput('src/generated/llms.txt', getLlmsText(baseUrl, false, config));
+await writeOutput('llms.txt', getLlmsText(baseUrl, false, config));
 await writeOutput('src/generated/llms-full.txt', getLlmsText(baseUrl, true, config));

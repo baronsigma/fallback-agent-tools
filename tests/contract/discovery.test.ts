@@ -7,7 +7,7 @@ import { makeOpenApi } from '../../src/surfaces/http/openapi.js';
 import { toolRegistry } from '../../src/core/registry.js';
 
 const baseUrl = 'https://fallback.test';
-const generatedFiles = ['src/generated/catalog.json', 'src/generated/openapi.json', 'src/generated/llms.txt', 'src/generated/llms-full.txt', 'src/generated/x402.json', 'src/generated/server-card.json', 'distribution/canonical.yaml', 'distribution/mcp-registry/server.json', 'distribution/apify/metadata.json', 'distribution/smithery/metadata.json', 'distribution/glama/metadata.json'];
+const generatedFiles = ['src/generated/catalog.json', 'src/generated/openapi.json', 'src/generated/llms.txt', 'llms.txt', 'src/generated/llms-full.txt', 'src/generated/x402.json', 'src/generated/server-card.json', 'distribution/canonical.yaml', 'distribution/mcp-registry/server.json', 'distribution/apify/metadata.json', 'distribution/smithery/metadata.json', 'distribution/glama/metadata.json'];
 
 async function generateFixture(outputDir: string): Promise<void> {
   const { execFileSync } = await import('node:child_process');

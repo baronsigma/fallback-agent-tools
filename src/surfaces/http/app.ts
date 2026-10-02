@@ -50,13 +50,24 @@ function makeRateLimiter(config: AppConfig) {
 
 type PublicPaymentState = Pick<AppConfig, 'paymentMode' | 'paymentConfigured'>;
 
+export function paymentModeSummary(mode: AppConfig['paymentMode']): string {
+  if (mode === 'disabled') return 'disabled';
+  const net = productMetadata.paymentNetworks[mode];
+  return `${mode === 'test' ? 'TEST' : 'production'} mode (${net.network}, ${net.label})`;
+}
+
+export function x402PriceSuffix(config: PublicPaymentState, enabled: boolean): string {
+  if (!config.paymentConfigured || !enabled) return ' (x402 inactive)';
+  return config.paymentMode === 'test' ? ' (x402 testnet)' : ' (x402 active)';
+}
+
 function catalog(baseUrl: string, config: PublicPaymentState, registry: readonly ToolRecord[]) {
   return {
     name: productMetadata.name,
     description: productMetadata.description,
     version: productMetadata.version,
     transports: { http: 'active', mcp: 'active', payment: config.paymentMode === 'disabled' ? 'disabled' : 'active' },
-    payment: { mode: config.paymentMode, x402: config.paymentConfigured },
+    payment: { mode: config.paymentMode, x402: config.paymentConfigured, ...(config.paymentMode === 'disabled' ? {} : { network: productMetadata.paymentNetworks[config.paymentMode].network }) },
     endpoints: Object.fromEntries(Object.entries(productMetadata.endpoints).map(([key, path]) => [key, `${baseUrl}${path}`])),
     tools: registry.map((tool) => ({
       id: tool.id, version: tool.version, name: tool.publicName, description: tool.description, category: tool.category,
@@ -68,11 +79,12 @@ function catalog(baseUrl: string, config: PublicPaymentState, registry: readonly
 }
 
 function llmsText(baseUrl: string, config: PublicPaymentState, registry: readonly ToolRecord[], full = false): string {
-  const lines = [`# ${productMetadata.name}`, '', productMetadata.description, '', `Catalog: ${baseUrl}/catalog.json`, `MCP endpoint: ${baseUrl}/mcp (active Streamable HTTP)`, `HTTP execution: active`, `x402 payments: ${config.paymentMode} mode`, '', '## Tools'];
+  const lines = [`# ${productMetadata.name}`, '', productMetadata.description, '', `Catalog: ${baseUrl}/catalog.json`, `MCP endpoint: ${baseUrl}/mcp (active Streamable HTTP)`, `HTTP execution: active`, `x402 payments: ${paymentModeSummary(config.paymentMode)}`, `Source (MIT): ${productMetadata.repositoryUrl}`, '', '## When to use', ...productMetadata.agentGuidance.map((line) => `- ${line}`), '', '## Tools'];
   for (const tool of registry) {
-    lines.push('', `### ${tool.publicName}`, tool.description, `Status: ${tool.availability}`, `Price: $${tool.priceUsd} USD per call${config.paymentConfigured && tool.x402.enabled ? ' (x402 active)' : ' (x402 inactive)'}`, `HTTP: ${baseUrl}${tool.httpRoute}`, `MCP: ${tool.availability === 'available' ? tool.mcpName : `not callable (planned: ${tool.mcpName})`}`);
+    lines.push('', `### ${tool.publicName}`, tool.description, `Status: ${tool.availability}`, `Price: $${tool.priceUsd} USD per call${x402PriceSuffix(config, tool.x402.enabled)}`, `HTTP: ${baseUrl}${tool.httpRoute}`, `MCP: ${tool.availability === 'available' ? tool.mcpName : `not callable (planned: ${tool.mcpName})`}`);
     if (full) lines.push(`Category: ${tool.category}`, `Latency target: ${tool.latencyTargetMs} ms`, `Input schema: ${JSON.stringify(tool.inputSchema.toJSONSchema({ io: 'input' }))}`, `Output schema: ${JSON.stringify(tool.outputSchema.toJSONSchema())}`, `Example: ${JSON.stringify(tool.examples[0]?.input ?? {})}`);
   }
+  lines.push('', '## Related', ...productMetadata.related.map((entry) => `- ${entry.name}: ${entry.url}. ${entry.summary}`));
   return `${lines.join('\n')}\n`;
 }
 

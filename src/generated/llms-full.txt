@@ -5,14 +5,20 @@ Small pay-per-call utilities that resolve uncertainty for autonomous agents. sou
 Catalog: https://fallback.factrail.online/catalog.json
 MCP endpoint: https://fallback.factrail.online/mcp (active Streamable HTTP)
 HTTP execution: active
-x402 payments: test mode
+x402 payments: TEST mode (eip155:84532, Base Sepolia testnet, testnet USDC; mainnet is not enabled)
+Source (MIT): https://github.com/baronsigma/fallback-agent-tools
+
+## When to use
+- Use source_route when you know what data you need and which publisher (domain or start_url), but not the machine-readable way to get it (API, OpenAPI, bulk download, dataset, feed).
+- Do not use it for general web research, answering factual questions, or fact verification.
+- score is a deterministic ranking, not a probability. no_suitable_route_found means "nothing suitable within the checked scope", not "no route exists". Always read limitations.
 
 ## Tools
 
 ### source_route
 Return ranked candidate access routes for obtaining information, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence. Bounded discovery with at most one external search fallback.
 Status: available
-Price: $0.02 USD per call (x402 active)
+Price: $0.02 USD per call (x402 testnet)
 HTTP: https://fallback.factrail.online/v1/tools/source_route
 MCP: source_route
 Category: source-discovery
@@ -44,3 +50,6 @@ Latency target: 500 ms
 Input schema: {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{},"additionalProperties":false}
 Output schema: {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"status":{"type":"string"}},"required":["status"],"additionalProperties":{}}
 Example: {}
+
+## Related
+- FACTRAIL MCP: https://factrail.online/llms.txt. Separate service, same design rule (report what was checked): source-backed facts with support levels, unresolved fields and receipts.

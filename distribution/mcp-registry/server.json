@@ -19,6 +19,9 @@
     "io.modelcontextprotocol.registry/publisher-provided": {
       "pricingModel": "x402-pay-per-call",
       "paymentActive": true,
+      "paymentMode": "test",
+      "paymentNetwork": "eip155:84532",
+      "paymentNote": "TEST mode (eip155:84532, Base Sepolia testnet, testnet USDC; mainnet is not enabled)",
       "catalogUrl": "https://fallback.factrail.online/catalog.json"
     }
   }
