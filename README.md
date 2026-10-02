@@ -1,5 +1,16 @@
 # Fallback
 
+```text
+  ______      _ _
+ |  ____|    | | |
+ | |__  __ _ | | |__   __ _  ___| | __
+ |  __|/ _` || | '_ \ / _` |/ __| |/ /
+ | |  | (_| || | |_) | (_| | (__|   <
+ |_|   \__,_||_|_.__/ \__,_|\___|_|\_\
+
+       find the route forward
+```
+
 **Don't spend a dollar of reasoning on a cent-sized problem.**
 
 Fallback is a collection of small, bounded, pay-per-call utilities for autonomous AI agents. It resolves small external uncertainties that block an agent's next action; it does not replace agent reasoning.
