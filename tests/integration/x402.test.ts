@@ -15,6 +15,8 @@ import type { ToolHandler } from '../../src/core/tool.js';
 import type { SourceRouteOutput } from '../../src/tools/source-route/contract.js';
 import type { AppConfig } from '../../src/core/config.js';
 import { toolRegistry } from '../../src/core/registry.js';
+import { runtimeToolHandlers, type RegisteredToolHandler } from '../../src/core/handlers.js';
+import type { ToolResponse } from '../../src/core/response.js';
 
 const runningServers: Server[] = [];
 afterEach(async () => {
@@ -64,13 +66,20 @@ describe('x402 V2 execution boundaries', () => {
     if (!payment) throw new Error('Expected payment integration.');
     let handlerCalls = 0;
     let paidSearchCalls = 0;
+    let errorRouteHandlerCalls = 0;
     const sourceRouteHandler: ToolHandler<typeof sourceRouteInputSchema, typeof sourceRouteOutputSchema> = async (rawInput, context) => {
       parseSourceRouteInput(rawInput);
       handlerCalls += 1;
       paidSearchCalls += 1;
       return successResponse({ toolId: 'source_route', toolVersion: '0.1.0-beta.1', requestId: context.requestId, result, startedAt: new Date() });
     };
-    const app = createHttpApp(config, { payment, sourceRouteHandler });
+    const errorRouteHandler = runtimeToolHandlers.find((entry) => entry.id === 'error_route');
+    if (!errorRouteHandler) throw new Error('Expected error_route handler.');
+    const handlers: RegisteredToolHandler[] = [
+      { id: 'source_route', handler: async (rawInput, context) => sourceRouteHandler(parseSourceRouteInput(rawInput), context) as Promise<ToolResponse<unknown>> },
+      { id: 'error_route', handler: async (input, context) => { errorRouteHandlerCalls += 1; return errorRouteHandler.handler(input, context); } },
+    ];
+    const app = createHttpApp(config, { payment, handlers });
     const appServer = await new Promise<Server>((resolve) => {
       const server = app.listen(0, '127.0.0.1', () => resolve(server));
     });
@@ -79,6 +88,14 @@ describe('x402 V2 execution boundaries', () => {
     if (!address || typeof address === 'string') throw new Error('Expected app TCP server.');
     const endpoint = `http://127.0.0.1:${address.port}`;
     const input = { goal: 'Find a relevant API', domain: 'statistics.test' };
+
+    const errorInput = { error: 'ECONNRESET' };
+    const unpaidErrorRoute = await fetch(`${endpoint}/v1/tools/error_route`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(errorInput) });
+    expect(unpaidErrorRoute.status).toBe(402);
+    const errorRequirement = decodePaymentRequiredHeader(unpaidErrorRoute.headers.get('payment-required') ?? '');
+    expect(errorRequirement.x402Version).toBe(2);
+    expect(errorRequirement.accepts[0]).toMatchObject({ scheme: 'exact', network: 'eip155:84532', payTo: config.x402.payTo, amount: '2000' });
+    expect(errorRouteHandlerCalls).toBe(0);
 
     const unpaid = await fetch(`${endpoint}/v1/tools/source_route`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input) });
     expect(unpaid.status).toBe(402);
@@ -115,6 +132,14 @@ describe('x402 V2 execution boundaries', () => {
     expect(handlerCalls).toBe(1);
     expect(paidSearchCalls).toBe(1);
 
+    const paidErrorRoute = await fetchWithPayment(`${endpoint}/v1/tools/error_route`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(errorInput) });
+    expect(paidErrorRoute.status).toBe(200);
+    const paidErrorBody = await paidErrorRoute.json() as { success: boolean; result: { classification: string }; requestId: string };
+    expect(paidErrorBody).toMatchObject({ success: true, result: { classification: 'connection_failure' } });
+    expect(paidErrorBody.requestId).toBeTruthy();
+    expect(paidErrorRoute.headers.get('payment-response')).toBeTruthy();
+    expect(errorRouteHandlerCalls).toBe(1);
+
     const unpaidMcp = await fetch(`${endpoint}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'source_route', arguments: input } }) });
     const unpaidMcpResponse = await parseMcpResponse(unpaidMcp) as unknown as { result: { isError: boolean; structuredContent: { x402Version: number; accepts: unknown[] } } };
     expect(unpaidMcpResponse.result.isError).toBe(true);
@@ -133,6 +158,19 @@ describe('x402 V2 execution boundaries', () => {
     expect(paidMcpResponse.result._meta['x402/payment-response']).toBeDefined();
     expect(handlerCalls).toBe(2);
     expect(paidSearchCalls).toBe(2);
+
+    const unpaidErrorMcp = await fetch(`${endpoint}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 12, method: 'tools/call', params: { name: 'error_route', arguments: errorInput } }) });
+    const unpaidErrorMcpResponse = await parseMcpResponse(unpaidErrorMcp) as unknown as { result: { isError: boolean; structuredContent: import('@x402/core/types').PaymentRequired } };
+    expect(unpaidErrorMcpResponse.result.isError).toBe(true);
+    expect(unpaidErrorMcpResponse.result.structuredContent.x402Version).toBe(2);
+    expect(errorRouteHandlerCalls).toBe(1);
+    const paidErrorMcpPayload = await client.createPaymentPayload(unpaidErrorMcpResponse.result.structuredContent);
+    const paidErrorMcpParams = attachPaymentToMeta({ name: 'error_route', arguments: errorInput }, paidErrorMcpPayload);
+    const paidErrorMcp = await fetch(`${endpoint}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 13, method: 'tools/call', params: paidErrorMcpParams }) });
+    const paidErrorMcpResponse = await parseMcpResponse(paidErrorMcp) as unknown as { result: { structuredContent: { classification: string }; _meta: Record<string, unknown> } };
+    expect(paidErrorMcpResponse.result.structuredContent.classification).toBe('connection_failure');
+    expect(paidErrorMcpResponse.result._meta['x402/payment-response']).toBeDefined();
+    expect(errorRouteHandlerCalls).toBe(2);
 
     const planned = await fetch(`${endpoint}/v1/tools/stop_search`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
     expect(planned.status).toBe(404);

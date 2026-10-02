@@ -1,16 +1,19 @@
 # Fallback
 
-Small pay-per-call utilities that resolve uncertainty for autonomous agents. source_route returns ranked candidate access routes, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence.
+Don't spend a dollar of reasoning on a cent-sized problem.
+
+Small pay-per-call recovery utilities for autonomous agents.
 
 Catalog: https://fallback.factrail.online/catalog.json
 MCP endpoint: https://fallback.factrail.online/mcp (active Streamable HTTP)
+Agent skill: https://fallback.factrail.online/skill.md
 HTTP execution: active
 x402 payments: test mode
 
 ## Tools
 
 ### source_route
-Return ranked candidate access routes for obtaining information, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence. Bounded discovery with at most one external search fallback.
+Find likely authoritative or machine-readable sources when you know what information you need but not where to retrieve it. Provide a goal and optional publisher domain or start URL; it returns ranked candidate routes and bounded evidence. Use it before blind searching. Do not use it when you already have the correct source or only need reasoning over supplied context.
 Status: available
 Price: $0.02 USD per call (x402 active)
 HTTP: https://fallback.factrail.online/v1/tools/source_route
@@ -34,13 +37,13 @@ Output schema: {"$schema":"https://json-schema.org/draft/2020-12/schema","type":
 Example: {}
 
 ### error_route
-Classify an API or tool failure and recommend a bounded next action. Planned and unavailable.
-Status: planned
-Price: $0.002 USD per call (x402 inactive)
+Diagnose a failed API, HTTP, MCP, or tool request and return a structured, bounded next action. Use it after a request fails instead of repeatedly retrying or spending a large reasoning loop diagnosing common errors. Provide a status, response, or error text; it does not execute requests or verify undocumented fixes.
+Status: available
+Price: $0.002 USD per call (x402 active)
 HTTP: https://fallback.factrail.online/v1/tools/error_route
-MCP: not callable (planned: error_route)
-Category: tool-recovery
-Latency target: 500 ms
-Input schema: {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{},"additionalProperties":false}
-Output schema: {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"status":{"type":"string"}},"required":["status"],"additionalProperties":{}}
-Example: {}
+MCP: error_route
+Category: recovery
+Latency target: 50 ms
+Input schema: {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"goal":{"type":"string","minLength":1,"maxLength":500},"request":{"type":"object","properties":{"method":{"type":"string","maxLength":16},"url":{"type":"string","maxLength":2048},"headers":{"type":"object","propertyNames":{"type":"string","maxLength":128},"additionalProperties":{"type":"string","maxLength":2048}},"body":{}},"additionalProperties":false},"response":{"type":"object","properties":{"status":{"type":"integer","minimum":100,"maximum":599},"headers":{"type":"object","propertyNames":{"type":"string","maxLength":128},"additionalProperties":{"type":"string","maxLength":2048}},"body":{"type":"string","maxLength":8192}},"additionalProperties":false},"error":{"type":"string","maxLength":2048},"attempt":{"type":"integer","minimum":1,"maximum":100}},"additionalProperties":false}
+Output schema: {"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"classification":{"type":"string","enum":["authentication_required","authorization_denied","rate_limited","quota_exhausted","payment_required","payment_failed","schema_mismatch","invalid_input","not_found","method_not_allowed","unsupported_media_type","timeout","connection_failure","dns_failure","tls_failure","upstream_failure","service_unavailable","conflict","stale_state","malformed_response","blocked_or_challenged","unknown"]},"retry":{"type":"string","enum":["never","immediate","after_delay","after_change","after_auth","after_payment","unknown"]},"safe_to_retry":{"type":"boolean"},"next_action":{"type":"object","properties":{"type":{"type":"string","enum":["modify_request","inspect_schema","wait","authenticate","change_endpoint","reduce_rate","pay","stop_retrying","escalate","unknown"]},"instruction":{"type":"string","minLength":1,"maxLength":240},"changes":{"maxItems":4,"type":"array","items":{"type":"string","maxLength":160}}},"required":["type","instruction","changes"],"additionalProperties":false},"confidence":{"type":"number","minimum":0,"maximum":1},"evidence":{"maxItems":8,"type":"array","items":{"type":"object","properties":{"signal":{"type":"string","maxLength":40},"value":{"anyOf":[{"type":"string","maxLength":160},{"type":"number"},{"type":"boolean"}]}},"required":["signal","value"],"additionalProperties":false}},"limits":{"maxItems":6,"type":"array","items":{"type":"string","maxLength":180}},"tool_version":{"type":"string"}},"required":["classification","retry","safe_to_retry","next_action","confidence","evidence","limits","tool_version"],"additionalProperties":false}
+Example: {"goal":"Retrieve a company profile","request":{"method":"POST","url":"https://api.example/company"},"response":{"status":400,"body":"current_company_domain is not a valid field"}}

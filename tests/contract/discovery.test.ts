@@ -7,7 +7,7 @@ import { makeOpenApi } from '../../src/surfaces/http/openapi.js';
 import { toolRegistry } from '../../src/core/registry.js';
 
 const baseUrl = 'https://fallback.test';
-const generatedFiles = ['src/generated/catalog.json', 'src/generated/openapi.json', 'src/generated/llms.txt', 'src/generated/llms-full.txt', 'src/generated/x402.json', 'src/generated/server-card.json', 'distribution/canonical.yaml', 'distribution/mcp-registry/server.json', 'distribution/apify/metadata.json', 'distribution/smithery/metadata.json', 'distribution/glama/metadata.json'];
+const generatedFiles = ['src/generated/catalog.json', 'src/generated/openapi.json', 'src/generated/llms.txt', 'src/generated/llms-full.txt', 'src/generated/skill.md', 'src/generated/x402.json', 'src/generated/server-card.json', 'distribution/canonical.yaml', 'distribution/mcp-registry/server.json', 'distribution/apify/metadata.json', 'distribution/smithery/metadata.json', 'distribution/glama/metadata.json'];
 
 async function generateFixture(outputDir: string): Promise<void> {
   const { execFileSync } = await import('node:child_process');
@@ -22,12 +22,15 @@ describe('generated projections', () => {
       expect(tool.mcpName).toBe(tool.publicName);
     }
     expect(spec.paths['/v1/tools/stop_search']).toBeUndefined();
-    expect(spec.paths['/v1/tools/error_route']).toBeUndefined();
+    expect(spec.paths['/v1/tools/error_route']?.post.operationId).toBe('error_route');
+    expect(spec.paths['/v1/tools/error_route']?.post['x-fallback-x402-active']).toBe(false);
     expect(spec.paths['/v1/tools/source_route']?.post['x-fallback-x402-active']).toBe(false);
     expect(spec.paths['/v1/tools/source_route']?.post.responses['402']).toBeUndefined();
     const paidSpec = makeOpenApi(baseUrl, true) as typeof spec;
     expect(paidSpec.paths['/v1/tools/source_route']?.post['x-fallback-x402-active']).toBe(true);
     expect(paidSpec.paths['/v1/tools/source_route']?.post.responses['402']).toBeDefined();
+    expect(paidSpec.paths['/v1/tools/error_route']?.post['x-fallback-x402-active']).toBe(true);
+    expect(paidSpec.paths['/v1/tools/error_route']?.post.responses['402']).toBeDefined();
   });
 
   it('matches generated catalog', async () => {

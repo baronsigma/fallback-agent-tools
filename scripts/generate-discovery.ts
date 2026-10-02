@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { toolRegistry, validateRegistry } from '../src/core/registry.js';
 import { productMetadata } from '../src/core/product.js';
 import { getCatalog, getLlmsText } from '../src/surfaces/http/app.js';
@@ -20,9 +20,9 @@ const openapi = makeOpenApi(baseUrl, config.paymentConfigured);
 const card = makeServerCard(baseUrl);
 const x402 = makeX402Discovery(baseUrl, config);
 const distribution = {
-  product: productMetadata.name,
+  product: productMetadata.productName,
   version: productMetadata.version,
-  description: productMetadata.description,
+  description: productMetadata.fullDescription,
   endpoints: Object.fromEntries(Object.entries(productMetadata.endpoints).map(([key, path]) => [key, `${baseUrl}${path}`])),
   transports: { httpEnabled: true, mcpEnabled: true, paymentMode: config.paymentMode },
   pricing: Object.fromEntries(toolRegistry.map((tool) => [tool.id, { amount: tool.priceUsd, currency: 'USD', model: 'pay-per-call' }])),
@@ -31,18 +31,18 @@ const distribution = {
 const serverJson = {
   $schema: 'https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json',
   name: 'io.github.baronsigma/fallback-agent-tools',
-  description: productMetadata.description,
-  title: productMetadata.name,
+  description: productMetadata.fullDescription,
+  title: productMetadata.productName,
   websiteUrl: baseUrl,
   repository: { url: productMetadata.repositoryUrl, source: 'github' },
   version: productMetadata.version,
   remotes: [{ type: 'streamable-http', url: `${baseUrl}/mcp` }],
   _meta: { 'io.modelcontextprotocol.registry/publisher-provided': { pricingModel: 'x402-pay-per-call', paymentActive: config.paymentConfigured, catalogUrl: `${baseUrl}/catalog.json` } },
 };
-const apify = { actorId: 'fallback/agent-tools', title: productMetadata.name, description: productMetadata.description, pricing: 'Pay per event; per-tool USD prices are in distribution/canonical.yaml.', tools: distribution.tools };
+const apify = { actorId: `${productMetadata.productId}/agent-tools`, title: productMetadata.productName, description: productMetadata.fullDescription, pricing: 'Pay per event; per-tool USD prices are in distribution/canonical.yaml.', tools: distribution.tools };
 const listings = {
-  smithery: { name: 'fallback-agent-tools', description: productMetadata.description, transportStatus: 'active', mcpUrl: `${baseUrl}/mcp`, paymentMode: config.paymentMode, tools: distribution.tools },
-  glama: { name: 'Fallback', description: productMetadata.description, transportStatus: 'active', mcpUrl: `${baseUrl}/mcp`, paymentMode: config.paymentMode, tools: distribution.tools },
+  smithery: { name: 'fallback-agent-tools', description: productMetadata.fullDescription, transportStatus: 'active', mcpUrl: `${baseUrl}/mcp`, paymentMode: config.paymentMode, tools: distribution.tools },
+  glama: { name: productMetadata.productName, description: productMetadata.fullDescription, transportStatus: 'active', mcpUrl: `${baseUrl}/mcp`, paymentMode: config.paymentMode, tools: distribution.tools },
 };
 const yaml = [
   `product: ${JSON.stringify(distribution.product)}`,
@@ -78,6 +78,8 @@ const outputs: Record<string, unknown> = {
   'distribution/smithery/metadata.json': listings.smithery,
   'distribution/glama/metadata.json': listings.glama,
 };
+const skillText = await readFile(resolve('skill.md'), 'utf8');
+outputs['src/generated/skill.md'] = skillText;
 const outputRoot = resolve(process.env['DISCOVERY_OUTPUT_DIR'] ?? '.');
 async function writeOutput(path: string, content: string): Promise<void> {
   const target = resolve(outputRoot, path);

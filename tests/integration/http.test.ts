@@ -68,15 +68,23 @@ describe('public HTTP scaffold', () => {
       const list = await fetch(`${base}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }) });
       expect(list.status).toBe(200);
       const toolsList = await parseMcpResponse(list) as unknown as { result: { tools: Array<{ name: string; inputSchema: unknown; outputSchema?: unknown }> } };
-      expect(toolsList.result.tools.map((tool) => tool.name)).toEqual(['source_route']);
+      expect(toolsList.result.tools.map((tool) => tool.name)).toEqual(['source_route', 'error_route']);
       expect(toolsList.result.tools[0]?.inputSchema).toMatchObject(toolRegistry[0]!.inputSchema.toJSONSchema({ io: 'input' }));
       expect(toolsList.result.tools[0]?.outputSchema).toMatchObject(toolRegistry[0]!.outputSchema.toJSONSchema());
+      expect(toolsList.result.tools[1]?.inputSchema).toMatchObject(toolRegistry.find((tool) => tool.id === 'error_route')!.inputSchema.toJSONSchema({ io: 'input' }));
       const mcpExecution = await fetch(`${base}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'source_route', arguments: { goal: 'Find schema', domain: 'statistics.test' } } }) });
       expect(mcpExecution.status).toBe(200);
       const mcpResult = await parseMcpResponse(mcpExecution) as unknown as { result: { structuredContent: { status: string }; _meta: { fallback: { requestId: string; execution: unknown } } } };
       expect(mcpResult.result.structuredContent.status).toBe('routes_found');
       expect(mcpResult.result._meta.fallback.requestId).toBeTruthy();
       expect(mcpResult.result._meta.fallback.execution).toBeDefined();
+      const errorRoute = await fetch(`${base}/v1/tools/error_route`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ error: 'ECONNRESET' }) });
+      expect(errorRoute.status).toBe(200);
+      expect((await errorRoute.json()).result.classification).toBe('connection_failure');
+      const skill = await fetch(`${base}/skill.md`);
+      expect(skill.status).toBe(200);
+      expect(skill.headers.get('content-type')).toContain('text/markdown');
+      expect(await skill.text()).toContain('## Use `error_route` when');
       expect(publisherFetches).toBeGreaterThan(beforeMcp);
     } finally {
       await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));

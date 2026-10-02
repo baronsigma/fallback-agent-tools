@@ -22,7 +22,7 @@ export function makeOpenApi(baseUrl: string, paymentConfigured = false): Record<
   }]));
   return {
     openapi: '3.1.1',
-    info: { title: productMetadata.name, version: productMetadata.version, description: productMetadata.description, license: { name: productMetadata.license } },
+    info: { title: productMetadata.productName, version: productMetadata.version, description: productMetadata.fullDescription, license: { name: productMetadata.license } },
     servers: [{ url: baseUrl }],
     paths,
     components: { schemas: { ToolResponse: { type: 'object', required: ['success', 'toolId', 'toolVersion', 'requestId', 'execution'], properties: { success: { type: 'boolean' }, toolId: { type: 'string' }, toolVersion: { type: 'string' }, requestId: { type: 'string' }, result: {}, error: { type: 'object' }, execution: { type: 'object' } } } } },

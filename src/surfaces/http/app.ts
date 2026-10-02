@@ -15,6 +15,8 @@ import { executeTool } from '../../core/executor.js';
 import { mapExecutionError } from '../../core/execution-error.js';
 import { createMcpHandler } from '../mcp/transport.js';
 import type { X402PaymentIntegration } from '../x402/payment.js';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
 type RateEntry = { startedAt: number; count: number };
 
@@ -52,8 +54,10 @@ type PublicPaymentState = Pick<AppConfig, 'paymentMode' | 'paymentConfigured'>;
 
 function catalog(baseUrl: string, config: PublicPaymentState, registry: readonly ToolRecord[]) {
   return {
-    name: productMetadata.name,
-    description: productMetadata.description,
+    productId: productMetadata.productId,
+    name: productMetadata.productName,
+    description: productMetadata.shortDescription,
+    tagline: productMetadata.tagline,
     version: productMetadata.version,
     transports: { http: 'active', mcp: 'active', payment: config.paymentMode === 'disabled' ? 'disabled' : 'active' },
     payment: { mode: config.paymentMode, x402: config.paymentConfigured },
@@ -68,7 +72,7 @@ function catalog(baseUrl: string, config: PublicPaymentState, registry: readonly
 }
 
 function llmsText(baseUrl: string, config: PublicPaymentState, registry: readonly ToolRecord[], full = false): string {
-  const lines = [`# ${productMetadata.name}`, '', productMetadata.description, '', `Catalog: ${baseUrl}/catalog.json`, `MCP endpoint: ${baseUrl}/mcp (active Streamable HTTP)`, `HTTP execution: active`, `x402 payments: ${config.paymentMode} mode`, '', '## Tools'];
+  const lines = [`# ${productMetadata.productName}`, '', productMetadata.tagline, '', productMetadata.shortDescription, '', `Catalog: ${baseUrl}/catalog.json`, `MCP endpoint: ${baseUrl}/mcp (active Streamable HTTP)`, `Agent skill: ${baseUrl}/skill.md`, `HTTP execution: active`, `x402 payments: ${config.paymentMode} mode`, '', '## Tools'];
   for (const tool of registry) {
     lines.push('', `### ${tool.publicName}`, tool.description, `Status: ${tool.availability}`, `Price: $${tool.priceUsd} USD per call${config.paymentConfigured && tool.x402.enabled ? ' (x402 active)' : ' (x402 inactive)'}`, `HTTP: ${baseUrl}${tool.httpRoute}`, `MCP: ${tool.availability === 'available' ? tool.mcpName : `not callable (planned: ${tool.mcpName})`}`);
     if (full) lines.push(`Category: ${tool.category}`, `Latency target: ${tool.latencyTargetMs} ms`, `Input schema: ${JSON.stringify(tool.inputSchema.toJSONSchema({ io: 'input' }))}`, `Output schema: ${JSON.stringify(tool.outputSchema.toJSONSchema())}`, `Example: ${JSON.stringify(tool.examples[0]?.input ?? {})}`);
@@ -97,11 +101,13 @@ export function createHttpApp(config: AppConfig, options: {
   app.set('case sensitive routing', true);
   app.set('strict routing', true);
   app.use(makeRateLimiter(config));
-  if (options.payment) app.post('/v1/tools/source_route', options.payment.httpMiddleware);
+  if (options.payment) for (const tool of registry.filter((candidate) => candidate.availability === 'available' && candidate.x402.enabled && candidate.x402.resourceType === 'http')) {
+    app.post(tool.httpRoute, options.payment.httpMiddleware);
+  }
   app.use(express.json({ limit: '64kb' }));
   const mcp = createMcpHandler(config, registry, handlers, options.payment);
   app.locals['mcpClose'] = mcp.close;
-  app.get('/', (_req, res) => res.json({ name: productMetadata.name, description: productMetadata.description, catalog: `${config.publicBaseUrl}/catalog.json`, mcp: `${config.publicBaseUrl}/mcp`, transports: { http: 'active', mcp: 'active' }, payment: { mode: config.paymentMode, priceModel: 'per-call' } }));
+  app.get('/', (_req, res) => res.json({ productId: productMetadata.productId, name: productMetadata.productName, description: productMetadata.shortDescription, tagline: productMetadata.tagline, catalog: `${config.publicBaseUrl}/catalog.json`, mcp: `${config.publicBaseUrl}/mcp`, transports: { http: 'active', mcp: 'active' }, payment: { mode: config.paymentMode, priceModel: 'per-call' } }));
   app.get('/healthz', (_req, res) => res.json({ status: 'ok' }));
   app.get('/readyz', (_req, res) => res.json({
     status: 'ready',
@@ -114,6 +120,10 @@ export function createHttpApp(config: AppConfig, options: {
   app.get('/openapi.json', (_req, res) => res.json(makeOpenApi(config.publicBaseUrl, config.paymentConfigured)));
   app.get('/llms.txt', (_req, res) => res.type('text/plain').send(llmsText(config.publicBaseUrl, config, registry)));
   app.get('/llms-full.txt', (_req, res) => res.type('text/plain').send(llmsText(config.publicBaseUrl, config, registry, true)));
+  app.get('/skill.md', async (_req, res, next) => {
+    try { res.type('text/markdown').send(await readFile(resolve(process.cwd(), 'skill.md'), 'utf8')); }
+    catch (error) { next(error); }
+  });
   app.get('/.well-known/x402.json', (_req, res) => res.json(makeX402Discovery(config.publicBaseUrl, config, registry)));
   app.get('/.well-known/mcp/server-card.json', (_req, res) => res.json(makeServerCard(config.publicBaseUrl)));
   app.post('/v1/tools/:toolId', async (req, res) => {

@@ -11,7 +11,7 @@ export function makeX402Discovery(baseUrl: string, config: Pick<AppConfig, 'paym
     protocolStandard: false,
     note: 'x402 payment requirements and Bazaar discovery extensions are returned by payable resource responses. This document is not a protocol-standard well-known endpoint.',
     x402Version: productMetadata.x402.version,
-    service: { name: productMetadata.name, description: productMetadata.description, resource: baseUrl },
+    service: { name: productMetadata.productName, description: productMetadata.fullDescription, resource: baseUrl },
     paymentMode: config.paymentMode,
     bazaar: { extension: productMetadata.x402.bazaarExtension, active: config.paymentConfigured },
     resources: registry.filter((tool) => tool.availability === 'available').map((tool) => ({

@@ -1,16 +1,19 @@
 # Fallback
 
-Small pay-per-call utilities that resolve uncertainty for autonomous agents. source_route returns ranked candidate access routes, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence.
+Don't spend a dollar of reasoning on a cent-sized problem.
+
+Small pay-per-call recovery utilities for autonomous agents.
 
 Catalog: https://fallback.factrail.online/catalog.json
 MCP endpoint: https://fallback.factrail.online/mcp (active Streamable HTTP)
+Agent skill: https://fallback.factrail.online/skill.md
 HTTP execution: active
 x402 payments: test mode
 
 ## Tools
 
 ### source_route
-Return ranked candidate access routes for obtaining information, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence. Bounded discovery with at most one external search fallback.
+Find likely authoritative or machine-readable sources when you know what information you need but not where to retrieve it. Provide a goal and optional publisher domain or start URL; it returns ranked candidate routes and bounded evidence. Use it before blind searching. Do not use it when you already have the correct source or only need reasoning over supplied context.
 Status: available
 Price: $0.02 USD per call (x402 active)
 HTTP: https://fallback.factrail.online/v1/tools/source_route
@@ -24,8 +27,8 @@ HTTP: https://fallback.factrail.online/v1/tools/stop_search
 MCP: not callable (planned: stop_search)
 
 ### error_route
-Classify an API or tool failure and recommend a bounded next action. Planned and unavailable.
-Status: planned
-Price: $0.002 USD per call (x402 inactive)
+Diagnose a failed API, HTTP, MCP, or tool request and return a structured, bounded next action. Use it after a request fails instead of repeatedly retrying or spending a large reasoning loop diagnosing common errors. Provide a status, response, or error text; it does not execute requests or verify undocumented fixes.
+Status: available
+Price: $0.002 USD per call (x402 active)
 HTTP: https://fallback.factrail.online/v1/tools/error_route
-MCP: not callable (planned: error_route)
+MCP: error_route

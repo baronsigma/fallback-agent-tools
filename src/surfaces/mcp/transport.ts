@@ -10,7 +10,7 @@ import type { X402PaymentIntegration } from '../x402/payment.js';
 
 export function createMcpHandler(config: AppConfig, registry: readonly ToolRecord[], handlers: readonly RegisteredToolHandler[], payment?: X402PaymentIntegration) {
   return createMcpHandlerSdk(() => {
-    const server = new McpServer({ name: 'fallback-agent-tools', version: productMetadata.version });
+    const server = new McpServer({ name: productMetadata.productId, version: productMetadata.version });
     for (const tool of registry.filter((entry) => entry.availability === 'available')) {
       const description = `${tool.description} Price: $${tool.priceUsd} USD per call${config.paymentMode === 'disabled' ? ' (x402 payment currently disabled).' : ' via x402.'}`;
       const execute = async (input: Record<string, unknown>) => {

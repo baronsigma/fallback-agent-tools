@@ -1,4 +1,5 @@
 import { isIP } from 'node:net';
+import { productIdentityFor } from './product.js';
 
 export type AppConfig = {
   publicBaseUrl: string;
@@ -53,7 +54,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (!Number.isInteger(maxRequests) || maxRequests < 1 || maxRequests > 10000) throw new Error('RATE_LIMIT_MAX_REQUESTS must be between 1 and 10000.');
   if (!Number.isInteger(trustProxyHops) || trustProxyHops < 0 || trustProxyHops > 5) throw new Error('TRUST_PROXY_HOPS must be an integer between 0 and 5.');
   return {
-    publicBaseUrl: parsedUrl.origin,
+    publicBaseUrl: productIdentityFor(parsedUrl.origin).publicBaseUrl,
     port,
     environment: environment as AppConfig['environment'],
     searchProvider: configuredSearchProvider as AppConfig['searchProvider'],

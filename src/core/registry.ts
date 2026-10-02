@@ -1,13 +1,15 @@
 import { z } from 'zod';
 import { isValidPrice } from './pricing.js';
 import { sourceRouteInputSchema, sourceRouteOutputSchema } from '../tools/source-route/contract.js';
+import { sourceRouteDescription } from '../tools/source-route/contract.js';
+import { errorRouteInputSchema, errorRouteOutputSchema } from '../tools/error-route/contract.js';
 
 const emptyInput = z.object({}).strict();
 const genericOutput = z.object({ status: z.string() }).passthrough();
 
 export const toolStatuses = ['planned', 'available', 'disabled'] as const;
 export type ToolStatus = typeof toolStatuses[number];
-export type ToolCategory = 'source-discovery' | 'search-quality' | 'tool-recovery';
+export type ToolCategory = 'source-discovery' | 'search-quality' | 'recovery';
 
 export type ToolRecord = {
   id: string;
@@ -30,7 +32,7 @@ export type ToolRecord = {
 export const toolRegistry: readonly ToolRecord[] = [
   {
     id: 'source_route', version: '0.1.0-beta.1', publicName: 'source_route',
-    description: 'Return ranked candidate access routes for obtaining information, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence. Bounded discovery with at most one external search fallback.',
+    description: sourceRouteDescription,
     category: 'source-discovery', inputSchema: sourceRouteInputSchema, outputSchema: sourceRouteOutputSchema,
     priceUsd: '0.02', availability: 'available', httpRoute: '/v1/tools/source_route', mcpName: 'source_route',
     examples: [{ title: 'Find a machine-readable route', input: { goal: 'Download the latest population dataset', domain: 'statistics.example' }, expected: 'routes_found or no_suitable_route_found within checked scope' }],
@@ -48,11 +50,11 @@ export const toolRegistry: readonly ToolRecord[] = [
   },
   {
     id: 'error_route', version: '0.1.0-beta.1', publicName: 'error_route',
-    description: 'Classify an API or tool failure and recommend a bounded next action. Planned and unavailable.',
-    category: 'tool-recovery', inputSchema: emptyInput, outputSchema: genericOutput,
-    priceUsd: '0.002', availability: 'planned', httpRoute: '/v1/tools/error_route', mcpName: 'error_route',
-    examples: [{ title: 'Planned schema placeholder', input: {} }],
-    latencyTargetMs: 500, x402: { resourceType: 'http', enabled: false, discoveryExtension: 'bazaar' },
+    description: 'Diagnose a failed API, HTTP, MCP, or tool request and return a structured, bounded next action. Use it after a request fails instead of repeatedly retrying or spending a large reasoning loop diagnosing common errors. Provide a status, response, or error text; it does not execute requests or verify undocumented fixes.',
+    category: 'recovery', inputSchema: errorRouteInputSchema, outputSchema: errorRouteOutputSchema,
+    priceUsd: '0.002', availability: 'available', httpRoute: '/v1/tools/error_route', mcpName: 'error_route',
+    examples: [{ title: 'Diagnose a request schema error', input: { goal: 'Retrieve a company profile', request: { method: 'POST', url: 'https://api.example/company' }, response: { status: 400, body: 'current_company_domain is not a valid field' } }, expected: 'schema_mismatch with inspect_schema guidance' }],
+    latencyTargetMs: 50, x402: { resourceType: 'http', enabled: true, discoveryExtension: 'bazaar' },
     distribution: { apifyActorId: 'fallback/error-route', smitheryServerId: 'error_route', glamaServerId: 'error_route' },
   },
 ];

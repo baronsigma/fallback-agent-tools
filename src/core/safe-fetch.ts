@@ -3,6 +3,7 @@ import { isIP } from 'node:net';
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import type { IncomingHttpHeaders } from 'node:http';
+import { productMetadata } from './product.js';
 
 export const NETWORK_LIMITS = {
   maxHttpRequests: 8,
@@ -124,7 +125,7 @@ function requestOnce(url: URL, pinnedAddress: string | undefined, timeoutMs: num
     const requestFn = url.protocol === 'https:' ? httpsRequest : httpRequest;
     const request = requestFn(url, {
       method: 'GET',
-      headers: { 'user-agent': 'Fallback-source-route/0.1 (+https://github.com/baronsigma/fallback-agent-tools)', accept: 'text/html,application/json,application/xml,text/plain,*/*;q=0.5' },
+      headers: { 'user-agent': `${productMetadata.productId}-source-route/0.1 (+${productMetadata.repositoryUrl})`, accept: 'text/html,application/json,application/xml,text/plain,*/*;q=0.5' },
       ...(pinnedAddress ? { lookup: (_hostname: string, options: unknown, callback: (error: NodeJS.ErrnoException | null, address: string | ResolvedAddress[], family?: number) => void) => {
         const family = isIP(pinnedAddress);
         const all = typeof options === 'object' && options !== null && 'all' in options && options.all === true;

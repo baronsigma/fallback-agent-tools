@@ -3,11 +3,11 @@
   "version": "1.0",
   "protocolVersion": "2025-11-25",
   "serverInfo": {
-    "name": "fallback-agent-tools",
+    "name": "fallback",
     "title": "Fallback",
     "version": "0.1.0-beta.1"
   },
-  "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents. source_route returns ranked candidate access routes, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence.",
+  "description": "Small pay-per-call recovery utilities for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem.",
   "documentationUrl": "https://github.com/baronsigma/fallback-agent-tools#readme",
   "transport": {
     "type": "streamable-http",

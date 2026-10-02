@@ -15,11 +15,11 @@
 
 Fallback is a collection of small, bounded, pay-per-call utilities for autonomous AI agents. It resolves small external uncertainties that block an agent's next action; it does not replace agent reasoning.
 
-`source_route` is the first available tool (v0.1.0-beta.1, $0.02/call). It returns **ranked candidate access routes**, preferably authoritative and machine-readable where possible, within a bounded checked scope. It does not guarantee one canonical route; absence is not proof of nonexistence. `stop_search` and `error_route` remain planned and unavailable.
+The available tools are `source_route` ($0.02/call), which finds likely authoritative or machine-readable sources, and `error_route` ($0.002/call), which classifies a failed request and recommends a bounded next action. `stop_search` remains planned. Neither tool replaces agent reasoning or claims certainty beyond its checked evidence.
 
 ## Hosted beta
 
-The public beta is available at [fallback.factrail.online](https://fallback.factrail.online). Its Streamable HTTP MCP endpoint is [fallback.factrail.online/mcp](https://fallback.factrail.online/mcp), and its health check is [fallback.factrail.online/healthz](https://fallback.factrail.online/healthz). The service currently offers `source_route` at $0.02 per call, with x402 payments enabled on Base Sepolia (`eip155:84532`). Use testnet funds only; the paid end-to-end settlement flow is still being verified.
+The public beta is available at [fallback.factrail.online](https://fallback.factrail.online). Its Streamable HTTP MCP endpoint is [fallback.factrail.online/mcp](https://fallback.factrail.online/mcp), and its [agent skill](https://fallback.factrail.online/skill.md) explains when to use each tool. `source_route` costs $0.02/call; `error_route` costs $0.002/call. x402 payments use Base Sepolia (`eip155:84532`). Use testnet funds only; paid end-to-end settlement is still being verified.
 
 ## Requirements
 

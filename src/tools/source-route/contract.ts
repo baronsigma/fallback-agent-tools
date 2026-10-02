@@ -4,6 +4,8 @@ import { getDomain as getRegistrableDomain } from 'tldts';
 
 export const preferredFormatSchema = z.enum(['json', 'csv', 'xml', 'rss', 'api', 'bulk_download', 'html']);
 
+export const sourceRouteDescription = 'Find likely authoritative or machine-readable sources when you know what information you need but not where to retrieve it. Provide a goal and optional publisher domain or start URL; it returns ranked candidate routes and bounded evidence. Use it before blind searching. Do not use it when you already have the correct source or only need reasoning over supplied context.';
+
 export const sourceRouteInputSchema = z.object({
   goal: z.string().trim().min(3).max(500),
   domain: z.hostname().trim().max(253).optional(),
