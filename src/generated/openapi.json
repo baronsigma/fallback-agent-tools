@@ -10,7 +10,7 @@
   },
   "servers": [
     {
-      "url": "https://factrail.online"
+      "url": "https://fallback.factrail.online"
     }
   ],
   "paths": {
@@ -25,7 +25,7 @@
         "x-fallback-tool-id": "source_route",
         "x-fallback-status": "available",
         "x-fallback-price-usd": "0.02",
-        "x-fallback-x402-active": false,
+        "x-fallback-x402-active": true,
         "requestBody": {
           "required": true,
           "content": {
@@ -94,6 +94,9 @@
                 }
               }
             }
+          },
+          "402": {
+            "description": "Payment required for this available paid tool."
           },
           "404": {
             "description": "Tool is unknown or unavailable."

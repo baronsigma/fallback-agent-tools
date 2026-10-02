@@ -2,30 +2,30 @@
 
 Small pay-per-call utilities that resolve uncertainty for autonomous agents. source_route returns ranked candidate access routes, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence.
 
-Catalog: https://factrail.online/catalog.json
-MCP endpoint: https://factrail.online/mcp (active Streamable HTTP)
+Catalog: https://fallback.factrail.online/catalog.json
+MCP endpoint: https://fallback.factrail.online/mcp (active Streamable HTTP)
 HTTP execution: active
-x402 payments: disabled mode
+x402 payments: test mode
 
 ## Tools
 
 ### source_route
 Return ranked candidate access routes for obtaining information, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence. Bounded discovery with at most one external search fallback.
 Status: available
-Price: $0.02 USD per call (x402 inactive)
-HTTP: https://factrail.online/v1/tools/source_route
+Price: $0.02 USD per call (x402 active)
+HTTP: https://fallback.factrail.online/v1/tools/source_route
 MCP: source_route
 
 ### stop_search
 Determine whether a bounded search has gathered enough negative evidence to reasonably stop. Planned and unavailable.
 Status: planned
 Price: $0.02 USD per call (x402 inactive)
-HTTP: https://factrail.online/v1/tools/stop_search
+HTTP: https://fallback.factrail.online/v1/tools/stop_search
 MCP: not callable (planned: stop_search)
 
 ### error_route
 Classify an API or tool failure and recommend a bounded next action. Planned and unavailable.
 Status: planned
 Price: $0.002 USD per call (x402 inactive)
-HTTP: https://factrail.online/v1/tools/error_route
+HTTP: https://fallback.factrail.online/v1/tools/error_route
 MCP: not callable (planned: error_route)

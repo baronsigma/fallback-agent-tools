@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { getCatalog } from '../../src/surfaces/http/app.js';
 import { makeOpenApi } from '../../src/surfaces/http/openapi.js';
 import { toolRegistry } from '../../src/core/registry.js';
 
-const baseUrl = process.env['PUBLIC_BASE_URL'] ?? 'https://fallback.test';
+const baseUrl = 'https://fallback.test';
+const generatedFiles = ['src/generated/catalog.json', 'src/generated/openapi.json', 'src/generated/llms.txt', 'src/generated/llms-full.txt', 'src/generated/x402.json', 'src/generated/server-card.json', 'distribution/canonical.yaml', 'distribution/mcp-registry/server.json', 'distribution/apify/metadata.json', 'distribution/smithery/metadata.json', 'distribution/glama/metadata.json'];
+
+async function generateFixture(outputDir: string): Promise<void> {
+  const { execFileSync } = await import('node:child_process');
+  execFileSync('npm', ['run', 'generate'], { stdio: 'ignore', env: { ...process.env, NODE_ENV: 'test', PUBLIC_BASE_URL: baseUrl, DISCOVERY_OUTPUT_DIR: outputDir } });
+}
 
 describe('generated projections', () => {
   it('keeps HTTP and MCP identifiers tied to the registry', () => {
@@ -24,15 +31,26 @@ describe('generated projections', () => {
   });
 
   it('matches generated catalog', async () => {
-    const generated = JSON.parse(await readFile(resolve('src/generated/catalog.json'), 'utf8')) as unknown;
-    expect(generated).toEqual(getCatalog(baseUrl));
+    const fixtureDir = await mkdtemp(resolve(tmpdir(), 'fallback-discovery-'));
+    try {
+      await generateFixture(fixtureDir);
+      const generated = JSON.parse(await readFile(resolve(fixtureDir, 'src/generated/catalog.json'), 'utf8')) as unknown;
+      expect(generated).toEqual(getCatalog(baseUrl));
+    } finally {
+      await rm(fixtureDir, { recursive: true, force: true });
+    }
   });
 
   it('is deterministic across generator runs', async () => {
-    const before = await Promise.all(['src/generated/catalog.json', 'src/generated/openapi.json', 'src/generated/llms.txt', 'src/generated/llms-full.txt', 'src/generated/x402.json', 'src/generated/server-card.json', 'distribution/canonical.yaml', 'distribution/mcp-registry/server.json', 'distribution/apify/metadata.json', 'distribution/smithery/metadata.json', 'distribution/glama/metadata.json'].map((file) => readFile(resolve(file), 'utf8')));
-    const { execFileSync } = await import('node:child_process');
-    execFileSync('npm', ['run', 'generate'], { stdio: 'ignore', env: { ...process.env, PUBLIC_BASE_URL: baseUrl } });
-    const after = await Promise.all(['src/generated/catalog.json', 'src/generated/openapi.json', 'src/generated/llms.txt', 'src/generated/llms-full.txt', 'src/generated/x402.json', 'src/generated/server-card.json', 'distribution/canonical.yaml', 'distribution/mcp-registry/server.json', 'distribution/apify/metadata.json', 'distribution/smithery/metadata.json', 'distribution/glama/metadata.json'].map((file) => readFile(resolve(file), 'utf8')));
-    expect(after).toEqual(before);
+    const firstDir = await mkdtemp(resolve(tmpdir(), 'fallback-discovery-a-'));
+    const secondDir = await mkdtemp(resolve(tmpdir(), 'fallback-discovery-b-'));
+    try {
+      await generateFixture(firstDir);
+      await generateFixture(secondDir);
+      const [first, second] = await Promise.all([firstDir, secondDir].map((dir) => Promise.all(generatedFiles.map((file) => readFile(resolve(dir, file), 'utf8')))));
+      expect(second).toEqual(first);
+    } finally {
+      await Promise.all([rm(firstDir, { recursive: true, force: true }), rm(secondDir, { recursive: true, force: true })]);
+    }
   });
 });

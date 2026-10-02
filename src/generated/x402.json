@@ -6,17 +6,17 @@
   "service": {
     "name": "Fallback",
     "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents. source_route returns ranked candidate access routes, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence.",
-    "resource": "https://factrail.online"
+    "resource": "https://fallback.factrail.online"
   },
-  "paymentMode": "disabled",
+  "paymentMode": "test",
   "bazaar": {
     "extension": "bazaar",
-    "active": false
+    "active": true
   },
   "resources": [
     {
       "id": "source_route",
-      "resource": "https://factrail.online/v1/tools/source_route",
+      "resource": "https://fallback.factrail.online/v1/tools/source_route",
       "type": "http",
       "toolName": "source_route",
       "description": "Return ranked candidate access routes for obtaining information, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence. Bounded discovery with at most one external search fallback.",
@@ -74,7 +74,7 @@
       "priceUsd": "0.02",
       "availability": "available",
       "enabled": true,
-      "active": false
+      "active": true
     }
   ]
 }

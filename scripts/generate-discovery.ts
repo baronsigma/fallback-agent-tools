@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { toolRegistry, validateRegistry } from '../src/core/registry.js';
 import { productMetadata } from '../src/core/product.js';
 import { getCatalog, getLlmsText } from '../src/surfaces/http/app.js';
@@ -7,6 +7,7 @@ import { makeOpenApi } from '../src/surfaces/http/openapi.js';
 import { makeServerCard } from '../src/surfaces/mcp/card.js';
 import { makeX402Discovery } from '../src/surfaces/x402/discovery.js';
 import { resolve } from 'node:path';
+import { dirname } from 'node:path';
 
 const generatorEnv: NodeJS.ProcessEnv = { ...process.env };
 if (!generatorEnv['PUBLIC_BASE_URL'] && generatorEnv['NODE_ENV'] !== 'production') generatorEnv['PUBLIC_BASE_URL'] = 'https://fallback.test';
@@ -77,9 +78,15 @@ const outputs: Record<string, unknown> = {
   'distribution/smithery/metadata.json': listings.smithery,
   'distribution/glama/metadata.json': listings.glama,
 };
+const outputRoot = resolve(process.env['DISCOVERY_OUTPUT_DIR'] ?? '.');
+async function writeOutput(path: string, content: string): Promise<void> {
+  const target = resolve(outputRoot, path);
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, content, 'utf8');
+}
 for (const [path, data] of Object.entries(outputs)) {
   const content = typeof data === 'string' ? data : `${JSON.stringify(data, null, 2)}\n`;
-  await writeFile(resolve(path), content, 'utf8');
+  await writeOutput(path, content);
 }
-await writeFile(resolve('src/generated/llms.txt'), getLlmsText(baseUrl, false, config), 'utf8');
-await writeFile(resolve('src/generated/llms-full.txt'), getLlmsText(baseUrl, true, config), 'utf8');
+await writeOutput('src/generated/llms.txt', getLlmsText(baseUrl, false, config));
+await writeOutput('src/generated/llms-full.txt', getLlmsText(baseUrl, true, config));

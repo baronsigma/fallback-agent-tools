@@ -5,11 +5,11 @@ transports:
   http: active
   mcp: active
 endpoints:
-  mcp: "https://factrail.online/mcp"
-  catalog: "https://factrail.online/catalog.json"
-  openapi: "https://factrail.online/openapi.json"
-  serverCard: "https://factrail.online/.well-known/mcp/server-card.json"
-  x402: "https://factrail.online/.well-known/x402.json"
+  mcp: "https://fallback.factrail.online/mcp"
+  catalog: "https://fallback.factrail.online/catalog.json"
+  openapi: "https://fallback.factrail.online/openapi.json"
+  serverCard: "https://fallback.factrail.online/.well-known/mcp/server-card.json"
+  x402: "https://fallback.factrail.online/.well-known/x402.json"
 tools:
   - id: source_route
     version: 0.1.0-beta.1

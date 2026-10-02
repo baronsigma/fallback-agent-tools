@@ -5,18 +5,18 @@
   "transports": {
     "http": "active",
     "mcp": "active",
-    "payment": "disabled"
+    "payment": "active"
   },
   "payment": {
-    "mode": "disabled",
-    "x402": false
+    "mode": "test",
+    "x402": true
   },
   "endpoints": {
-    "mcp": "https://factrail.online/mcp",
-    "catalog": "https://factrail.online/catalog.json",
-    "openapi": "https://factrail.online/openapi.json",
-    "serverCard": "https://factrail.online/.well-known/mcp/server-card.json",
-    "x402": "https://factrail.online/.well-known/x402.json"
+    "mcp": "https://fallback.factrail.online/mcp",
+    "catalog": "https://fallback.factrail.online/catalog.json",
+    "openapi": "https://fallback.factrail.online/openapi.json",
+    "serverCard": "https://fallback.factrail.online/.well-known/mcp/server-card.json",
+    "x402": "https://fallback.factrail.online/.well-known/x402.json"
   },
   "tools": [
     {
@@ -236,7 +236,7 @@
         "resourceType": "http",
         "enabled": true,
         "discoveryExtension": "bazaar",
-        "active": false
+        "active": true
       },
       "distribution": {
         "apifyActorId": "fallback/source-route",

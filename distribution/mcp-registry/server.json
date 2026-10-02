@@ -3,7 +3,7 @@
   "name": "io.github.baronsigma/fallback-agent-tools",
   "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents. source_route returns ranked candidate access routes, preferably authoritative and machine-readable where possible, within a bounded checked scope. Absence is not proof of nonexistence.",
   "title": "Fallback",
-  "websiteUrl": "https://factrail.online",
+  "websiteUrl": "https://fallback.factrail.online",
   "repository": {
     "url": "https://github.com/baronsigma/fallback-agent-tools",
     "source": "github"
@@ -12,14 +12,14 @@
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://factrail.online/mcp"
+      "url": "https://fallback.factrail.online/mcp"
     }
   ],
   "_meta": {
     "io.modelcontextprotocol.registry/publisher-provided": {
       "pricingModel": "x402-pay-per-call",
-      "paymentActive": false,
-      "catalogUrl": "https://factrail.online/catalog.json"
+      "paymentActive": true,
+      "catalogUrl": "https://fallback.factrail.online/catalog.json"
     }
   }
 }
