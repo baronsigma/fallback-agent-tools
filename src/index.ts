@@ -7,7 +7,9 @@ const config = loadConfig();
 validateRegistry();
 const payment = await createX402PaymentIntegration(config, toolRegistry);
 const app = createHttpApp(config, payment ? { payment } : {});
-const server = app.listen(config.port, () => process.stdout.write(`Fallback listening on port ${config.port}\n`));
+// Keep the service private to the host. Public traffic is admitted only through
+// an explicitly configured reverse proxy or tunnel route.
+const server = app.listen(config.port, '127.0.0.1', () => process.stdout.write(`Fallback listening on 127.0.0.1:${config.port}\n`));
 
 let closing = false;
 async function shutdown(signal: string) {

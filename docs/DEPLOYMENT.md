@@ -45,7 +45,7 @@ ProtectHome=true
 WantedBy=multi-user.target
 ```
 
-The service writes concise startup/shutdown messages to stdout. It does not log tool request bodies, payment signatures, wallet keys, Tavily keys, or facilitator credentials. systemd/journald can collect process output. `SIGTERM` stops accepting new connections and closes MCP resources after in-flight HTTP work drains.
+The service binds to `127.0.0.1` so it is reachable only through a local proxy or tunnel connector. The service writes concise startup/shutdown messages to stdout. It does not log tool request bodies, payment signatures, wallet keys, Tavily keys, or facilitator credentials. systemd/journald can collect process output. `SIGTERM` stops accepting new connections and closes MCP resources after in-flight HTTP work drains.
 
 ## Health and readiness
 
