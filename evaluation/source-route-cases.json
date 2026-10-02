@@ -763,5 +763,36 @@
       "pbf",
       "planet.openstreetmap.org"
     ]
+  },
+  {
+    "id": "boamp",
+    "goal": "Find the API for French public procurement notices (BOAMP)",
+    "domain": "boamp.fr",
+    "preferred_formats": [
+      "api",
+      "json"
+    ],
+    "acceptable_route_types": [
+      "official_api",
+      "openapi",
+      "dataset",
+      "bulk_download",
+      "developer_docs"
+    ],
+    "expected_domains": [
+      "boamp.fr",
+      "opendatasoft.com"
+    ],
+    "notes": "BOAMP is an Opendatasoft/Huwise portal; its Explore API spec lives at a platform-specific path.",
+    "required_url_terms_any": [
+      "api"
+    ],
+    "forbidden_url_terms": [
+      "sitemap.xml",
+      "manifest.json",
+      "fonts.googleapis.com",
+      "robots.txt",
+      "service-worker"
+    ]
   }
 ]

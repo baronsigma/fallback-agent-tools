@@ -27,6 +27,15 @@ export type SourceRouteDiscoveryOptions = {
 };
 
 const OPENAPI_PATHS = ['/openapi.json', '/.well-known/openapi.json', '/swagger.json'];
+// Open-data portal software publishes its API spec at a fixed, non-root path. Detecting the
+// platform from the fetched page lets one probe find the spec instead of guessing root paths.
+const PLATFORM_OPENAPI_PATHS: ReadonlyArray<{ platform: string; marker: RegExp; path: string }> = [
+  { platform: 'Opendatasoft/Huwise', marker: /opendatasoft|huwise|\bods-[a-z]/i, path: '/api/explore/v2.1/swagger.json' },
+  { platform: 'udata', marker: /\budata\b/i, path: '/api/1/swagger.json' },
+];
+export function detectPlatformOpenApiPaths(html: string): Array<{ platform: string; path: string }> {
+  return PLATFORM_OPENAPI_PATHS.filter((entry) => entry.marker.test(html)).map(({ platform, path }) => ({ platform, path }));
+}
 const DIRECT_BUDGET_WITH_SEARCH = 7_000;
 const DIRECT_REQUEST_CAP_WITH_SEARCH = NETWORK_LIMITS.maxHttpRequests - 2;
 
@@ -107,6 +116,17 @@ function candidate(url: string, route_type: RouteCandidate['route_type'], format
   return { url, route_type, ...(format ? { format } : {}), publisher_match, verification: publisher_match === 'search_discovered' ? 'search_only' : 'publisher_linked', machine_readable, auth: 'unknown', score: 0, reasons };
 }
 
+// Some specs serialize keys alphabetically, so "swagger"/"openapi" can appear after a large "paths" object.
+function jsonDeclaresApiSpec(body: string): boolean {
+  if (!/"(?:openapi|swagger)"\s*:/.test(body) || !/"paths"\s*:/.test(body)) return false;
+  try {
+    const parsed = JSON.parse(body) as Record<string, unknown> | null;
+    return Boolean(parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      && (typeof parsed['openapi'] === 'string' || typeof parsed['swagger'] === 'string')
+      && parsed['paths'] && typeof parsed['paths'] === 'object');
+  } catch { return false; }
+}
+
 function classifyProbe(url: string, body: string, contentType: string, publisherMatch: RouteCandidate['publisher_match'], reason: string, status = 200): RouteCandidate | undefined {
   const parsedUrl = new URL(url);
   const path = parsedUrl.pathname.toLowerCase();
@@ -124,7 +144,7 @@ function classifyProbe(url: string, body: string, contentType: string, publisher
     }
     return undefined;
   }
-  const bodyLooksLikeOpenApi = /json/.test(contentType) && /"(?:openapi|swagger)"\s*:/i.test(body.slice(0, 2000))
+  const bodyLooksLikeOpenApi = /json/.test(contentType) && (/"(?:openapi|swagger)"\s*:/i.test(body.slice(0, 2000)) || jsonDeclaresApiSpec(body))
     || /yaml|yml/.test(contentType) && /^(?:openapi|swagger)\s*:/im.test(body.slice(0, 2000));
   if (bodyLooksLikeOpenApi || /(?:openapi|swagger)/i.test(contentType) && status >= 200 && status < 300) {
     const spec = candidate(url, 'openapi', /yaml|yml/.test(contentType) ? 'yaml' : 'json', publisherMatch, true, [reason, 'Response identifies itself as an API specification.']);
@@ -269,6 +289,7 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
   let root: URL | undefined;
   let suppliedHost: string | undefined;
   let linked: Array<{ url: string; text: string; rel?: string; type?: string }> = [];
+  let platformPaths: Array<{ platform: string; path: string }> = [];
 
   if (input.domain || input.start_url) {
     const hostname = normalizeDomain(input.domain ?? new URL(input.start_url!).hostname);
@@ -284,6 +305,7 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
         const finalUrl = new URL(result.url);
         root = finalUrl;
         linked = extractLinks(result.body, finalUrl.toString()).slice(0, 100);
+        if (/html/i.test(String(result.headers['content-type'] ?? ''))) platformPaths = detectPlatformOpenApiPaths(result.body.slice(0, 1_000_000));
         const rootPublisherMatch = publisherRelationship(finalUrl.hostname, hostname, true);
         for (const link of linked) {
           const found = linkedCandidate(link, hostname);
@@ -298,6 +320,8 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
     }
 
     const paths = new Set<string>();
+    // Platform-specific spec probes go first so redirects and generic probes cannot exhaust the request cap.
+    for (const { path } of platformPaths) paths.add(new URL(path, root.origin).toString());
     if (!root.pathname.replace(/\/$/, '')) paths.add('/llms.txt');
     paths.add(new URL('/robots.txt', root.origin).toString());
     for (const link of linked) {
@@ -308,7 +332,7 @@ export async function discoverSourceRoutes(input: SourceRouteInput, options: Sou
     }
     for (const link of linked.filter((x) => /sitemap/i.test(`${x.url} ${x.text}`)).slice(0, 1)) paths.add(link.url);
     const apiIntent = (input.preferred_formats ?? []).includes('api') || /\bapi\b|endpoint|openapi|swagger|machine readable schema/i.test(input.goal);
-    if (apiIntent && !candidates.some((item) => item.route_type === 'openapi' && item.publisher_match !== 'search_discovered')) for (const path of OPENAPI_PATHS) paths.add(new URL(path, root.origin).toString());
+    if (apiIntent && !platformPaths.length && !candidates.some((item) => item.route_type === 'openapi' && item.publisher_match !== 'search_discovered')) for (const path of OPENAPI_PATHS) paths.add(new URL(path, root.origin).toString());
     let rootAlreadyExposesOpenApi = false;
     const linkedOpenApi = rankCandidates(candidates, input.preferred_formats ?? [], input.require_official, input.goal)
       .find((route) => route.route_type === 'openapi' && route.machine_readable && route.score >= 0.92);
