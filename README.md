@@ -19,7 +19,23 @@ Fallback is a collection of small, bounded, pay-per-call utilities for autonomou
 
 ## Hosted beta
 
-The public beta is available at [fallback.factrail.online](https://fallback.factrail.online). Its Streamable HTTP MCP endpoint is [fallback.factrail.online/mcp](https://fallback.factrail.online/mcp), and its health check is [fallback.factrail.online/healthz](https://fallback.factrail.online/healthz). The service currently offers `source_route` at $0.02 per call, with x402 payments enabled on Base Sepolia (`eip155:84532`). Use testnet funds only; the paid end-to-end settlement flow is still being verified.
+The public beta is available at [fallback.factrail.online](https://fallback.factrail.online). Its Streamable HTTP MCP endpoint is [fallback.factrail.online/mcp](https://fallback.factrail.online/mcp), and its health check is [fallback.factrail.online/healthz](https://fallback.factrail.online/healthz). The service currently offers `source_route` at $0.02 per call. **Payments run on the Base Sepolia test network only** (x402 TEST mode, `eip155:84532`, testnet USDC): this is not real billing, and mainnet is not enabled. Use testnet funds only; the paid end-to-end settlement flow is still being verified.
+
+## When an agent should use this
+
+Use `source_route` when an agent knows **what** it needs and **which publisher** (a domain or start URL), but not **how** to get it in machine-readable form: an API, OpenAPI spec, bulk download, dataset or feed.
+
+- Good fit: "Get the latest population dataset from Eurostat", "Find a JSON/CSV route for this agency's statistics", before the agent starts browsing page by page.
+- Not a fit: general web research, answering a factual question, or verifying a fact (for source-backed facts, see [FACTRAIL MCP](https://github.com/baronsigma/factrail)). Planned tools (`stop_search`, `error_route`) are not callable.
+
+How to read the result:
+- `status: routes_found`: try routes in order. `score` is a deterministic ranking, **not** a probability or confidence.
+- `status: no_suitable_route_found`: nothing suitable **within the checked scope** (see `checked.direct_probes`). This is **not** evidence that no route exists. The agent should look elsewhere (another host, the publisher's open-data portal), not conclude "there is no API".
+- Always read `limitations`. It says, for example, whether external search was unavailable or candidate inspection was capped.
+
+Limits per call: at most 8 direct HTTP requests, 12 s total, 1 MiB per response, and at most 1 external search request. No LLM inference. The hosted beta currently runs deterministic discovery only (no search provider configured).
+
+Access: hosted MCP `https://fallback.factrail.online/mcp` (Streamable HTTP) or `POST /v1/tools/source_route`, x402 pay-per-call, **currently Base Sepolia testnet only** (testnet USDC; no account or API key). To try it without any payment, self-host with `PAYMENT_MODE=disabled` (see Local development). Machine-readable summary: [`llms.txt`](llms.txt) (also served at `/llms.txt`). More detail: [Using Fallback with agents](docs/USING_WITH_AGENTS.md).
 
 ## Requirements
 
@@ -67,3 +83,7 @@ The service supports x402 V2 per-call payment without accounts or API keys. The 
 Call `POST /v1/tools/source_route` with a goal and either `start_url` or `domain`. The result is limited to the checked scope; a missing result does not mean that no route exists. Direct site discovery runs without external search credentials. If Tavily or Brave is configured and direct discovery is insufficient, the tool can make at most one search request.
 
 See [PRODUCT](docs/PRODUCT.md), [ARCHITECTURE](docs/ARCHITECTURE.md), [TOOL_ADMISSION](docs/TOOL_ADMISSION.md), [DISTRIBUTION](docs/DISTRIBUTION.md), and [RELEASE](docs/RELEASE.md).
+
+## Related: FACTRAIL MCP
+
+Fallback comes from the same author and design rule as [FACTRAIL MCP](https://github.com/baronsigma/factrail): agent tools should report what they checked, not only what they found. FACTRAIL answers "what is established about this fact, and from which source?" by returning evidence envelopes with support levels, unresolved fields and receipts ("unknown is better than invented"). Fallback answers "where can I get this data?" ("absence is not proof of nonexistence"). The two are independent services with no code dependency, and you can use either one alone.
