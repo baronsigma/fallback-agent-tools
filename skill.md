@@ -50,6 +50,34 @@ Example input:
 
 The result is machine-readable and includes a stable classification, retry guidance, safe-to-retry flag, next action, confidence, and safe evidence. Credentials and raw request/response content are not returned.
 
+## Use `request_repair` when
+
+- A failed API or HTTP request has a concrete input or request-shape problem.
+- You have the failed request and response evidence, and optionally a caller-supplied JSON Schema or OpenAPI request schema.
+- `error_route` identifies `schema_mismatch` or another input problem and you want the smallest evidence-backed patch before deciding whether to retry.
+
+Do not use it for general debugging, API discovery, authentication or authorization failures, DNS/TLS failures, generic server errors, payment failures, or when a required value is unavailable. It does not send or retry requests, browse, or guess undocumented fields. It abstains when evidence is insufficient; review any proposed change before retrying.
+
+HTTP: `POST https://fallback.factrail.online/v1/tools/request_repair`
+MCP tool: `request_repair`
+Price: `$0.005` per call.
+
+Example input:
+
+```json
+{"goal":"Retrieve a company profile","request":{"method":"POST","url":"https://api.example.com/company","headers":{"content-type":"application/json"},"body":{"company_domain":"example.com"}},"response":{"status":400,"body":{"error":"company_domain is invalid; use current_company_domains"}},"error_route":{"classification":"schema_mismatch","retry":"after_change"}}
+```
+
+## Recovery workflow
+
+```text
+call API → inspect failure → error_route → classification=schema_mismatch
+→ request_repair with the failed request, response, and available schema
+→ review the proposed minimal patch → retry only if it preserves the goal
+```
+
+`error_route` diagnoses and recommends. `request_repair` transforms only when supplied evidence justifies the change.
+
 ## Payment behavior
 
 In paid mode, unpaid HTTP calls receive an x402 V2 HTTP 402 challenge before tool execution. MCP tool calls return the x402 payment challenge in MCP metadata. Use an official x402-compatible payer flow; never retry with credentials or a network inferred from anything other than the challenge.

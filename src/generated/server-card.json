@@ -11,7 +11,7 @@
   "documentationUrl": "https://github.com/baronsigma/fallback-agent-tools#readme",
   "transport": {
     "type": "streamable-http",
-    "endpoint": "https://fallback.factrail.online/mcp"
+    "endpoint": "https://fallback.test/mcp"
   },
   "capabilities": {
     "tools": {

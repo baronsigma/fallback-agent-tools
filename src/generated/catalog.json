@@ -7,20 +7,19 @@
   "transports": {
     "http": "active",
     "mcp": "active",
-    "payment": "active"
+    "payment": "disabled"
   },
   "payment": {
-    "mode": "test",
-    "x402": true,
-    "network": "eip155:84532"
+    "mode": "disabled",
+    "x402": false
   },
   "endpoints": {
-    "mcp": "https://fallback.factrail.online/mcp",
-    "catalog": "https://fallback.factrail.online/catalog.json",
-    "openapi": "https://fallback.factrail.online/openapi.json",
-    "serverCard": "https://fallback.factrail.online/.well-known/mcp/server-card.json",
-    "x402": "https://fallback.factrail.online/.well-known/x402.json",
-    "skill": "https://fallback.factrail.online/skill.md"
+    "mcp": "https://fallback.test/mcp",
+    "catalog": "https://fallback.test/catalog.json",
+    "openapi": "https://fallback.test/openapi.json",
+    "serverCard": "https://fallback.test/.well-known/mcp/server-card.json",
+    "x402": "https://fallback.test/.well-known/x402.json",
+    "skill": "https://fallback.test/skill.md"
   },
   "tools": [
     {
@@ -240,7 +239,7 @@
         "resourceType": "http",
         "enabled": true,
         "discoveryExtension": "bazaar",
-        "active": true
+        "active": false
       },
       "distribution": {
         "apifyActorId": "fallback/source-route",
@@ -555,12 +554,473 @@
         "resourceType": "http",
         "enabled": true,
         "discoveryExtension": "bazaar",
-        "active": true
+        "active": false
       },
       "distribution": {
         "apifyActorId": "fallback/error-route",
         "smitheryServerId": "error_route",
         "glamaServerId": "error_route"
+      }
+    },
+    {
+      "id": "request_repair",
+      "version": "0.1.0-beta.1",
+      "name": "request_repair",
+      "description": "Repair a failed API or HTTP request using only available schema and error evidence. Use after error_route identifies a request-shape or input problem. Returns the smallest justified request changes and abstains when evidence is insufficient.",
+      "category": "recovery",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "goal": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "request": {
+            "type": "object",
+            "properties": {
+              "method": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 16
+              },
+              "url": {
+                "type": "string",
+                "maxLength": 2048
+              },
+              "headers": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                "additionalProperties": {
+                  "type": "string",
+                  "maxLength": 4096
+                }
+              },
+              "query": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                "additionalProperties": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "body": {
+                "$ref": "#/$defs/__schema0"
+              }
+            },
+            "additionalProperties": false
+          },
+          "response": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 599
+              },
+              "headers": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                "additionalProperties": {
+                  "type": "string",
+                  "maxLength": 4096
+                }
+              },
+              "body": {
+                "$ref": "#/$defs/__schema0"
+              }
+            },
+            "additionalProperties": false
+          },
+          "error": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "error_route": {
+            "type": "object",
+            "properties": {
+              "classification": {
+                "type": "string",
+                "enum": [
+                  "authentication_required",
+                  "authorization_denied",
+                  "rate_limited",
+                  "quota_exhausted",
+                  "payment_required",
+                  "payment_failed",
+                  "schema_mismatch",
+                  "invalid_input",
+                  "not_found",
+                  "method_not_allowed",
+                  "unsupported_media_type",
+                  "timeout",
+                  "connection_failure",
+                  "dns_failure",
+                  "tls_failure",
+                  "upstream_failure",
+                  "service_unavailable",
+                  "conflict",
+                  "stale_state",
+                  "malformed_response",
+                  "blocked_or_challenged",
+                  "unknown"
+                ]
+              },
+              "retry": {
+                "type": "string",
+                "enum": [
+                  "never",
+                  "immediate",
+                  "after_delay",
+                  "after_change",
+                  "after_auth",
+                  "after_payment",
+                  "unknown"
+                ]
+              }
+            },
+            "required": [
+              "classification"
+            ],
+            "additionalProperties": {}
+          },
+          "schema": {
+            "$ref": "#/$defs/__schema0"
+          },
+          "constraints": {
+            "default": {
+              "allow_method_change": false,
+              "allow_url_change": false
+            },
+            "type": "object",
+            "properties": {
+              "allow_method_change": {
+                "default": false,
+                "type": "boolean"
+              },
+              "allow_url_change": {
+                "default": false,
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "additionalProperties": false,
+        "$defs": {
+          "__schema0": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8192
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              },
+              {
+                "maxItems": 256,
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                "additionalProperties": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "repair_available",
+              "insufficient_evidence"
+            ]
+          },
+          "original_request": {
+            "type": "object",
+            "properties": {
+              "method": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "headers": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "query": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "body": {
+                "$ref": "#/$defs/__schema0"
+              }
+            },
+            "additionalProperties": false
+          },
+          "repaired_request": {
+            "type": "object",
+            "properties": {
+              "method": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "headers": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "query": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "body": {
+                "$ref": "#/$defs/__schema0"
+              }
+            },
+            "additionalProperties": false
+          },
+          "changes": {
+            "maxItems": 3,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
+                "operation": {
+                  "type": "string",
+                  "enum": [
+                    "add",
+                    "remove",
+                    "replace",
+                    "move"
+                  ]
+                },
+                "value": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "value_source": {
+                  "type": "string",
+                  "enum": [
+                    "caller_input",
+                    "explicit_server_evidence",
+                    "caller_schema",
+                    "response_header"
+                  ]
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 180
+                }
+              },
+              "required": [
+                "path",
+                "operation",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "evidence": {
+            "maxItems": 8,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "caller_schema",
+                    "server_error",
+                    "response_header",
+                    "http_semantics"
+                  ]
+                },
+                "signal": {
+                  "type": "string",
+                  "enum": [
+                    "schema_rejects_field",
+                    "explicit_field_replacement",
+                    "required_value_available",
+                    "schema_scalar_type",
+                    "schema_parameter_location",
+                    "supported_content_type",
+                    "allow_header_single_method",
+                    "explicit_field_rejection"
+                  ]
+                }
+              },
+              "required": [
+                "source",
+                "signal"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "safe_to_retry": {
+            "type": "boolean"
+          },
+          "limits": {
+            "maxItems": 6,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 180
+            }
+          }
+        },
+        "required": [
+          "status",
+          "original_request",
+          "changes",
+          "evidence",
+          "confidence",
+          "safe_to_retry",
+          "limits"
+        ],
+        "additionalProperties": false,
+        "$defs": {
+          "__schema0": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8192
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              },
+              {
+                "maxItems": 256,
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                "additionalProperties": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "price": {
+        "amount": "0.005",
+        "currency": "USD",
+        "model": "pay-per-call"
+      },
+      "availability": "available",
+      "httpRoute": "/v1/tools/request_repair",
+      "mcpName": "request_repair",
+      "examples": [
+        {
+          "title": "Apply an explicit field rename",
+          "input": {
+            "goal": "Retrieve a company profile",
+            "request": {
+              "method": "POST",
+              "url": "https://api.example.com/company",
+              "headers": {
+                "content-type": "application/json"
+              },
+              "body": {
+                "company_domain": "example.com"
+              }
+            },
+            "response": {
+              "status": 400,
+              "body": "company_domain is invalid; use current_company_domains"
+            }
+          },
+          "expected": "rename only the explicitly rejected field and abstain without evidence"
+        }
+      ],
+      "latencyTargetMs": 50,
+      "x402": {
+        "resourceType": "http",
+        "enabled": true,
+        "discoveryExtension": "bazaar",
+        "active": false
+      },
+      "distribution": {
+        "apifyActorId": "fallback/request-repair",
+        "smitheryServerId": "request_repair",
+        "glamaServerId": "request_repair"
       }
     }
   ]

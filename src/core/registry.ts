@@ -3,6 +3,7 @@ import { isValidPrice } from './pricing.js';
 import { sourceRouteInputSchema, sourceRouteOutputSchema } from '../tools/source-route/contract.js';
 import { sourceRouteDescription } from '../tools/source-route/contract.js';
 import { errorRouteInputSchema, errorRouteOutputSchema } from '../tools/error-route/contract.js';
+import { requestRepairInputSchema, requestRepairOutputSchema } from '../tools/request-repair/contract.js';
 
 const emptyInput = z.object({}).strict();
 const genericOutput = z.object({ status: z.string() }).passthrough();
@@ -56,6 +57,15 @@ export const toolRegistry: readonly ToolRecord[] = [
     examples: [{ title: 'Diagnose a request schema error', input: { goal: 'Retrieve a company profile', request: { method: 'POST', url: 'https://api.example/company' }, response: { status: 400, body: 'current_company_domain is not a valid field' } }, expected: 'schema_mismatch with inspect_schema guidance' }],
     latencyTargetMs: 50, x402: { resourceType: 'http', enabled: true, discoveryExtension: 'bazaar' },
     distribution: { apifyActorId: 'fallback/error-route', smitheryServerId: 'error_route', glamaServerId: 'error_route' },
+  },
+  {
+    id: 'request_repair', version: '0.1.0-beta.1', publicName: 'request_repair',
+    description: 'Repair a failed API or HTTP request using only available schema and error evidence. Use after error_route identifies a request-shape or input problem. Returns the smallest justified request changes and abstains when evidence is insufficient.',
+    category: 'recovery', inputSchema: requestRepairInputSchema, outputSchema: requestRepairOutputSchema,
+    priceUsd: '0.005', availability: 'available', httpRoute: '/v1/tools/request_repair', mcpName: 'request_repair',
+    examples: [{ title: 'Apply an explicit field rename', input: { goal: 'Retrieve a company profile', request: { method: 'POST', url: 'https://api.example.com/company', headers: { 'content-type': 'application/json' }, body: { company_domain: 'example.com' } }, response: { status: 400, body: 'company_domain is invalid; use current_company_domains' } }, expected: 'rename only the explicitly rejected field and abstain without evidence' }],
+    latencyTargetMs: 50, x402: { resourceType: 'http', enabled: true, discoveryExtension: 'bazaar' },
+    distribution: { apifyActorId: 'fallback/request-repair', smitheryServerId: 'request_repair', glamaServerId: 'request_repair' },
   },
 ];
 

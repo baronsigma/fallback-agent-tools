@@ -19,6 +19,7 @@ import type { AppConfig } from '../../src/core/config.js';
 import { toolRegistry } from '../../src/core/registry.js';
 import { runtimeToolHandlers, type RegisteredToolHandler } from '../../src/core/handlers.js';
 import type { ToolResponse } from '../../src/core/response.js';
+import { requestRepairOutputSchema } from '../../src/tools/request-repair/contract.js';
 
 const runningServers: Server[] = [];
 afterEach(async () => {
@@ -69,6 +70,7 @@ describe('x402 V2 execution boundaries', () => {
     let handlerCalls = 0;
     let paidSearchCalls = 0;
     let errorRouteHandlerCalls = 0;
+    let requestRepairHandlerCalls = 0;
     const sourceRouteHandler: ToolHandler<typeof sourceRouteInputSchema, typeof sourceRouteOutputSchema> = async (rawInput, context) => {
       parseSourceRouteInput(rawInput);
       handlerCalls += 1;
@@ -77,9 +79,12 @@ describe('x402 V2 execution boundaries', () => {
     };
     const errorRouteHandler = runtimeToolHandlers.find((entry) => entry.id === 'error_route');
     if (!errorRouteHandler) throw new Error('Expected error_route handler.');
+    const requestRepairRuntime = runtimeToolHandlers.find((entry) => entry.id === 'request_repair');
+    if (!requestRepairRuntime) throw new Error('Expected request_repair handler.');
     const handlers: RegisteredToolHandler[] = [
       { id: 'source_route', handler: async (rawInput, context) => sourceRouteHandler(parseSourceRouteInput(rawInput), context) as Promise<ToolResponse<unknown>> },
       { id: 'error_route', handler: async (input, context) => { errorRouteHandlerCalls += 1; return errorRouteHandler.handler(input, context); } },
+      { id: 'request_repair', handler: async (input, context) => { requestRepairHandlerCalls += 1; return requestRepairRuntime.handler(input, context); } },
     ];
     const app = createHttpApp(config, { payment, handlers });
     const appServer = await new Promise<Server>((resolve) => {
@@ -142,6 +147,19 @@ describe('x402 V2 execution boundaries', () => {
     expect(paidErrorRoute.headers.get('payment-response')).toBeTruthy();
     expect(errorRouteHandlerCalls).toBe(1);
 
+    const repairInput = { goal: 'retrieve a company profile', request: { method: 'POST', url: 'https://api.example.com/company', headers: { 'content-type': 'application/json' }, body: { company_domain: 'example.com' } }, response: { status: 400, body: 'company_domain is invalid; use current_company_domains' } };
+    expect(toolRegistry.find((tool) => tool.id === 'request_repair')?.priceUsd).toBe('0.005');
+    const unpaidRepairHttp = await fetch(`${endpoint}/v1/tools/request_repair`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(repairInput) });
+    expect(unpaidRepairHttp.status).toBe(402);
+    expect(requestRepairHandlerCalls).toBe(0);
+    const paidRepairHttp = await fetchWithPayment(`${endpoint}/v1/tools/request_repair`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(repairInput) });
+    expect(paidRepairHttp.status).toBe(200);
+    expect(paidRepairHttp.headers.get('payment-response')).toBeTruthy();
+    const paidRepairBody = await paidRepairHttp.json() as { success: boolean; result: unknown };
+    expect(paidRepairBody.success).toBe(true);
+    expect(requestRepairOutputSchema.safeParse(paidRepairBody.result).success).toBe(true);
+    expect(requestRepairHandlerCalls).toBe(1);
+
     const unpaidMcp = await fetch(`${endpoint}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'source_route', arguments: input } }) });
     const unpaidMcpResponse = await parseMcpResponse(unpaidMcp) as unknown as { result: { isError: boolean; structuredContent: { x402Version: number; accepts: unknown[] } } };
     expect(unpaidMcpResponse.result.isError).toBe(true);
@@ -183,6 +201,9 @@ describe('x402 V2 execution boundaries', () => {
     expect(listedError?.inputSchema).toBeDefined();
     expect(listedSource).not.toHaveProperty('outputSchema');
     expect(listedError).not.toHaveProperty('outputSchema');
+    const listedRepair = listedTools.tools.find((tool) => tool.name === 'request_repair');
+    expect(listedRepair?.inputSchema).toBeDefined();
+    expect(listedRepair).not.toHaveProperty('outputSchema');
 
     const handlerCountsBeforeRawCalls = { source: handlerCalls, error: errorRouteHandlerCalls };
     const rawUnpaidSource = await mcpSdk.callTool({ name: 'source_route', arguments: input });
@@ -199,6 +220,13 @@ describe('x402 V2 execution boundaries', () => {
     expect(rawErrorChallenge.accepts[0]).toMatchObject({ scheme: 'exact', network: 'eip155:84532', amount: '2000' });
     expect(JSON.parse(((rawUnpaidError.content as Array<{ text: string }>)[0] as { text: string }).text)).toMatchObject({ x402Version: 2 });
     expect(errorRouteHandlerCalls).toBe(handlerCountsBeforeRawCalls.error);
+
+    const rawUnpaidRepair = await mcpSdk.callTool({ name: 'request_repair', arguments: repairInput });
+    const repairChallenge = rawUnpaidRepair.structuredContent as unknown as import('@x402/core/types').PaymentRequired;
+    expect(rawUnpaidRepair.isError).toBe(true);
+    expect(repairChallenge.x402Version).toBe(2);
+    expect(repairChallenge.accepts[0]).toMatchObject({ scheme: 'exact', network: 'eip155:84532', amount: '5000' });
+    expect(requestRepairHandlerCalls).toBe(1);
 
     const malformedMcpInput = await mcpSdk.callTool({ name: 'error_route', arguments: { response: { status: 99 } } });
     expect(malformedMcpInput.isError).toBe(true);
@@ -224,6 +252,14 @@ describe('x402 V2 execution boundaries', () => {
     expect(toolRegistry.find((tool) => tool.id === 'error_route')?.outputSchema.safeParse(wrappedErrorBody.result).success).toBe(true);
     expect(wrappedErrorBody.requestId).toBeTruthy();
     expect(errorRouteHandlerCalls).toBe(handlerCountsBeforeRawCalls.error + 1);
+
+    const wrappedRepair = await officialMcp.callTool('request_repair', repairInput);
+    expect(wrappedRepair.paymentMade).toBe(true);
+    expect(wrappedRepair.paymentResponse?.success).toBe(true);
+    const wrappedRepairBody = JSON.parse((((wrappedRepair.content as unknown) as Array<{ text: string }>)[0] as { text: string }).text) as { result: unknown; requestId: string };
+    expect(requestRepairOutputSchema.safeParse(wrappedRepairBody.result).success).toBe(true);
+    expect(wrappedRepairBody.requestId).toBeTruthy();
+    expect(requestRepairHandlerCalls).toBe(2);
     await mcpSdk.close();
 
     const freeErrorTool = toolRegistry.find((tool) => tool.id === 'error_route');

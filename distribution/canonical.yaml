@@ -5,12 +5,12 @@ transports:
   http: active
   mcp: active
 endpoints:
-  mcp: "https://fallback.factrail.online/mcp"
-  catalog: "https://fallback.factrail.online/catalog.json"
-  openapi: "https://fallback.factrail.online/openapi.json"
-  serverCard: "https://fallback.factrail.online/.well-known/mcp/server-card.json"
-  x402: "https://fallback.factrail.online/.well-known/x402.json"
-  skill: "https://fallback.factrail.online/skill.md"
+  mcp: "https://fallback.test/mcp"
+  catalog: "https://fallback.test/catalog.json"
+  openapi: "https://fallback.test/openapi.json"
+  serverCard: "https://fallback.test/.well-known/mcp/server-card.json"
+  x402: "https://fallback.test/.well-known/x402.json"
+  skill: "https://fallback.test/skill.md"
 tools:
   - id: source_route
     version: 0.1.0-beta.1
@@ -42,3 +42,13 @@ tools:
     apifyActorId: fallback/error-route
     smitheryServerId: error_route
     glamaServerId: error_route
+  - id: request_repair
+    version: 0.1.0-beta.1
+    name: request_repair
+    status: available
+    httpRoute: /v1/tools/request_repair
+    mcpName: request_repair
+    priceUsd: "0.005"
+    apifyActorId: fallback/request-repair
+    smitheryServerId: request_repair
+    glamaServerId: request_repair

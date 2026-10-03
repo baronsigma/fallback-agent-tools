@@ -39,6 +39,18 @@
         "smitheryServerId": "error_route",
         "glamaServerId": "error_route"
       }
+    },
+    {
+      "id": "request_repair",
+      "name": "request_repair",
+      "status": "available",
+      "mcpName": "request_repair",
+      "httpRoute": "/v1/tools/request_repair",
+      "marketplaceIds": {
+        "apifyActorId": "fallback/request-repair",
+        "smitheryServerId": "request_repair",
+        "glamaServerId": "request_repair"
+      }
     }
   ]
 }

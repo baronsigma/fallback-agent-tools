@@ -3,7 +3,7 @@
   "name": "io.github.baronsigma/fallback-agent-tools",
   "description": "Small pay-per-call recovery utilities for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem.",
   "title": "Fallback",
-  "websiteUrl": "https://fallback.factrail.online",
+  "websiteUrl": "https://fallback.test",
   "repository": {
     "url": "https://github.com/baronsigma/fallback-agent-tools",
     "source": "github"
@@ -12,17 +12,15 @@
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://fallback.factrail.online/mcp"
+      "url": "https://fallback.test/mcp"
     }
   ],
   "_meta": {
     "io.modelcontextprotocol.registry/publisher-provided": {
       "pricingModel": "x402-pay-per-call",
-      "paymentActive": true,
-      "paymentMode": "test",
-      "paymentNetwork": "eip155:84532",
-      "paymentNote": "TEST mode (eip155:84532, Base Sepolia testnet, testnet USDC; mainnet is not enabled)",
-      "catalogUrl": "https://fallback.factrail.online/catalog.json"
+      "paymentActive": false,
+      "paymentMode": "disabled",
+      "catalogUrl": "https://fallback.test/catalog.json"
     }
   }
 }

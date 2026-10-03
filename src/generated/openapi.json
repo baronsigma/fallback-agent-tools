@@ -10,7 +10,7 @@
   },
   "servers": [
     {
-      "url": "https://fallback.factrail.online"
+      "url": "https://fallback.test"
     }
   ],
   "paths": {
@@ -25,7 +25,7 @@
         "x-fallback-tool-id": "source_route",
         "x-fallback-status": "available",
         "x-fallback-price-usd": "0.02",
-        "x-fallback-x402-active": true,
+        "x-fallback-x402-active": false,
         "requestBody": {
           "required": true,
           "content": {
@@ -95,9 +95,6 @@
               }
             }
           },
-          "402": {
-            "description": "Payment required for this available paid tool."
-          },
           "404": {
             "description": "Tool is unknown or unavailable."
           }
@@ -115,7 +112,7 @@
         "x-fallback-tool-id": "error_route",
         "x-fallback-status": "available",
         "x-fallback-price-usd": "0.002",
-        "x-fallback-x402-active": true,
+        "x-fallback-x402-active": false,
         "requestBody": {
           "required": true,
           "content": {
@@ -207,8 +204,229 @@
               }
             }
           },
-          "402": {
-            "description": "Payment required for this available paid tool."
+          "404": {
+            "description": "Tool is unknown or unavailable."
+          }
+        }
+      }
+    },
+    "/v1/tools/request_repair": {
+      "post": {
+        "operationId": "request_repair",
+        "summary": "request_repair",
+        "description": "Repair a failed API or HTTP request using only available schema and error evidence. Use after error_route identifies a request-shape or input problem. Returns the smallest justified request changes and abstains when evidence is insufficient.",
+        "tags": [
+          "recovery"
+        ],
+        "x-fallback-tool-id": "request_repair",
+        "x-fallback-status": "available",
+        "x-fallback-price-usd": "0.005",
+        "x-fallback-x402-active": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "goal": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "request": {
+                    "type": "object",
+                    "properties": {
+                      "method": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 16
+                      },
+                      "url": {
+                        "type": "string",
+                        "maxLength": 2048
+                      },
+                      "headers": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string",
+                          "maxLength": 128
+                        },
+                        "additionalProperties": {
+                          "type": "string",
+                          "maxLength": 4096
+                        }
+                      },
+                      "query": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string",
+                          "maxLength": 128
+                        },
+                        "additionalProperties": {
+                          "$ref": "#/$defs/__schema0"
+                        }
+                      },
+                      "body": {
+                        "$ref": "#/$defs/__schema0"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "response": {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "type": "integer",
+                        "minimum": 100,
+                        "maximum": 599
+                      },
+                      "headers": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string",
+                          "maxLength": 128
+                        },
+                        "additionalProperties": {
+                          "type": "string",
+                          "maxLength": 4096
+                        }
+                      },
+                      "body": {
+                        "$ref": "#/$defs/__schema0"
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "error": {
+                    "type": "string",
+                    "maxLength": 4000
+                  },
+                  "error_route": {
+                    "type": "object",
+                    "properties": {
+                      "classification": {
+                        "type": "string",
+                        "enum": [
+                          "authentication_required",
+                          "authorization_denied",
+                          "rate_limited",
+                          "quota_exhausted",
+                          "payment_required",
+                          "payment_failed",
+                          "schema_mismatch",
+                          "invalid_input",
+                          "not_found",
+                          "method_not_allowed",
+                          "unsupported_media_type",
+                          "timeout",
+                          "connection_failure",
+                          "dns_failure",
+                          "tls_failure",
+                          "upstream_failure",
+                          "service_unavailable",
+                          "conflict",
+                          "stale_state",
+                          "malformed_response",
+                          "blocked_or_challenged",
+                          "unknown"
+                        ]
+                      },
+                      "retry": {
+                        "type": "string",
+                        "enum": [
+                          "never",
+                          "immediate",
+                          "after_delay",
+                          "after_change",
+                          "after_auth",
+                          "after_payment",
+                          "unknown"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "classification"
+                    ],
+                    "additionalProperties": {}
+                  },
+                  "schema": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "constraints": {
+                    "default": {
+                      "allow_method_change": false,
+                      "allow_url_change": false
+                    },
+                    "type": "object",
+                    "properties": {
+                      "allow_method_change": {
+                        "default": false,
+                        "type": "boolean"
+                      },
+                      "allow_url_change": {
+                        "default": false,
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "request"
+                ],
+                "additionalProperties": false,
+                "$defs": {
+                  "__schema0": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 8192
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "maxItems": 256,
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/__schema0"
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string",
+                          "maxLength": 128
+                        },
+                        "additionalProperties": {
+                          "$ref": "#/$defs/__schema0"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tool response envelope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResponse"
+                }
+              }
+            }
           },
           "404": {
             "description": "Tool is unknown or unavailable."

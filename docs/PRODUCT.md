@@ -15,10 +15,11 @@ Fallback does not replace agent reasoning. Each service should answer a narrow o
 | `source_route` | Find likely authoritative or machine-readable sources when the agent knows what it needs but not where to retrieve it | $0.02 | Available (beta) |
 | `stop_search` | Decide whether a bounded negative search can reasonably stop | $0.02 | Planned |
 | `error_route` | Classify a failed request and return a bounded, safe next action | $0.002 | Available (beta) |
+| `request_repair` | Propose the smallest request change justified by supplied schema or error evidence | $0.005 | Available (beta) |
 
-Tool pricing and availability are canonicalized in `src/core/registry.ts`. `stop_search` remains planned; `request_repair` is spec-only and `fetch_resolve` is deferred pending usage evidence.
+Tool pricing and availability are canonicalized in `src/core/registry.ts`. `stop_search` is the next planned milestone; `fetch_resolve` is deferred pending usage evidence.
 
-`source_route` starts at a supplied `start_url` (including its path) or at a supplied domain, then inspects a bounded set of publisher and standard discovery references. When no sufficiently useful direct route is found, it may use at most one configured external search request. Tavily and Brave are supported; external search is optional. It does not use LLM inference, guarantee one canonical route, or claim that an undiscovered route does not exist. `error_route` is deterministic-first and local: it uses status, selected headers, structured error fields, bounded text patterns, and common network error codes. It does not call an LLM, perform web search, retry the failed request, or echo request/response payloads.
+`source_route` starts at a supplied `start_url` (including its path) or at a supplied domain, then inspects a bounded set of publisher and standard discovery references. When no sufficiently useful direct route is found, it may use at most one configured external search request. Tavily and Brave are supported; external search is optional. It does not use LLM inference, guarantee one canonical route, or claim that an undiscovered route does not exist. `error_route` is deterministic-first and local: it uses status, selected headers, structured error fields, bounded text patterns, and common network error codes. It does not call an LLM, perform web search, retry the failed request, or echo request/response payloads. `request_repair` transforms a failed request only when caller-supplied schema, machine-readable errors, explicit HTTP headers, or tightly constrained text support a minimal change; otherwise it abstains. It never executes requests or invents credentials, identifiers, URLs, or business values.
 
 ## Access model
 
