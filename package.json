@@ -23,6 +23,7 @@
     "benchmark:error-route": "tsx scripts/benchmark-error-route.ts",
     "benchmark:request-repair": "tsx scripts/benchmark-request-repair.ts",
     "benchmark:stop-search": "tsx scripts/benchmark-stop-search.ts",
+    "telemetry:report": "tsx scripts/report-telemetry.ts",
     "eval:source-route": "tsx scripts/eval-source-route.ts",
     "release:check": "tsx scripts/release-check.ts"
   },

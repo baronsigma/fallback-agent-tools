@@ -47,6 +47,19 @@ describe('generated projections', () => {
     }
   });
 
+  it('keeps the generated MCP Registry server description within its published limit', async () => {
+    const fixtureDir = await mkdtemp(resolve(tmpdir(), 'fallback-mcp-registry-'));
+    try {
+      await generateFixture(fixtureDir);
+      const manifest = JSON.parse(await readFile(resolve(fixtureDir, 'distribution/mcp-registry/server.json'), 'utf8')) as { description: string; name: string; remotes: Array<{ url: string }> };
+      expect(manifest.description.length).toBeLessThanOrEqual(100);
+      expect(manifest.name).toBe('io.github.baronsigma/fallback-agent-tools');
+      expect(manifest.remotes[0]?.url).toBe(`${baseUrl}/mcp`);
+    } finally {
+      await rm(fixtureDir, { recursive: true, force: true });
+    }
+  });
+
   it('is deterministic across generator runs', async () => {
     const firstDir = await mkdtemp(resolve(tmpdir(), 'fallback-discovery-a-'));
     const secondDir = await mkdtemp(resolve(tmpdir(), 'fallback-discovery-b-'));

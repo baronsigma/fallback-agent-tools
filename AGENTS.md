@@ -3,7 +3,7 @@
 ## Product scope
 - Fallback is a collection of small, bounded, pay-per-call utilities that resolve external uncertainties blocking an agent's next action.
 - Do not add dashboards, user accounts, subscriptions, or unrelated product scope to the MVP.
-- A planned tool is unavailable until an explicit implementation is admitted and enabled. `source_route` is implemented; `stop_search` and `error_route` remain planned.
+- A planned tool is unavailable until an explicit implementation is admitted and enabled. The current beta tools are `source_route`, `error_route`, `request_repair`, and `stop_search`; product scope is frozen to these four unless the maintainer explicitly changes it.
 
 ## Canonical metadata
 - `src/core/registry.ts` is the only canonical tool registry. Tool identity, schemas, prices, status, routes, MCP names, examples, latency targets, x402 discovery metadata, and distribution IDs originate there.

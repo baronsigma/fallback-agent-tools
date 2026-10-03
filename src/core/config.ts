@@ -11,6 +11,7 @@ export type AppConfig = {
   rateLimit: { windowMs: number; maxRequests: number };
   trustProxyHops: number;
   x402: { payTo?: string; network?: string; facilitatorUrl?: string; facilitatorAuthorization?: string };
+  telemetry: { payerHmacKey?: string };
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -36,6 +37,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const network = env['X402_NETWORK']?.trim();
   const facilitatorUrl = env['X402_FACILITATOR_URL']?.trim();
   const facilitatorAuthorization = env['X402_FACILITATOR_AUTHORIZATION']?.trim();
+  const telemetryPayerHmacKey = env['TELEMETRY_PAYER_HMAC_KEY']?.trim();
+  if (telemetryPayerHmacKey && Buffer.byteLength(telemetryPayerHmacKey, 'utf8') < 32) throw new Error('TELEMETRY_PAYER_HMAC_KEY must contain at least 32 bytes when configured.');
   if (paymentMode !== 'disabled') {
     if (!payTo || !/^0x[a-fA-F0-9]{40}$/.test(payTo) || /^0x0{40}$/i.test(payTo)) throw new Error('Paid mode requires X402_PAY_TO to be a non-zero EVM receiving address.');
     if (!network) throw new Error('Paid mode requires X402_NETWORK.');
@@ -68,5 +71,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       ...(facilitatorUrl ? { facilitatorUrl } : {}),
       ...(facilitatorAuthorization ? { facilitatorAuthorization } : {}),
     },
+    telemetry: { ...(telemetryPayerHmacKey ? { payerHmacKey: telemetryPayerHmacKey } : {}) },
   };
 }

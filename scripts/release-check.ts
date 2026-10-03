@@ -6,7 +6,7 @@ import { productMetadata } from '../src/core/product.js';
 validateRegistry();
 if (productMetadata.repositoryUrl.includes('REPLACE_WITH')) throw new Error('Set the canonical GitHub repository URL before release.');
 const serverJson = JSON.parse(await readFile(resolve('distribution/mcp-registry/server.json'), 'utf8')) as { version?: string; description?: string };
-if (serverJson.version !== productMetadata.version || serverJson.description !== productMetadata.fullDescription) throw new Error('Generated server.json metadata is stale.');
+if (serverJson.version !== productMetadata.version || serverJson.description !== productMetadata.shortDescription || (serverJson.description?.length ?? Infinity) > 100) throw new Error('Generated server.json metadata is stale or exceeds the MCP Registry description limit.');
 const packageJson = JSON.parse(await readFile(resolve('package.json'), 'utf8')) as { version?: string };
 if (packageJson.version !== productMetadata.version || toolRegistry.some((tool) => tool.version !== productMetadata.version)) throw new Error('Package/product/tool versions must agree for a coordinated release.');
 const catalog = JSON.parse(await readFile(resolve('src/generated/catalog.json'), 'utf8')) as { tools?: unknown[] };

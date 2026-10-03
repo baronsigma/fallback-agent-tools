@@ -37,4 +37,10 @@ describe('runtime configuration', () => {
     expect(config.x402.facilitatorAuthorization).toBe(validPaidTest.X402_FACILITATOR_AUTHORIZATION);
     expect(JSON.stringify({ mode: config.paymentMode, configured: config.paymentConfigured, network: config.x402.network })).not.toContain('not-a-real-token');
   });
+
+  it('accepts only a sufficiently long separate telemetry fingerprint key', () => {
+    const key = 'x'.repeat(32);
+    expect(loadConfig({ NODE_ENV: 'test', TELEMETRY_PAYER_HMAC_KEY: key }).telemetry.payerHmacKey).toBe(key);
+    expect(() => loadConfig({ NODE_ENV: 'test', TELEMETRY_PAYER_HMAC_KEY: 'too-short' })).toThrow(/at least 32 bytes/);
+  });
 });

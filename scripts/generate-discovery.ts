@@ -31,7 +31,7 @@ const distribution = {
 const serverJson = {
   $schema: 'https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json',
   name: 'io.github.baronsigma/fallback-agent-tools',
-  description: productMetadata.fullDescription,
+  description: productMetadata.shortDescription,
   title: productMetadata.productName,
   websiteUrl: baseUrl,
   repository: { url: productMetadata.repositoryUrl, source: 'github' },

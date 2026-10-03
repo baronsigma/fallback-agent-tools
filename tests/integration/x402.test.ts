@@ -21,6 +21,7 @@ import { runtimeToolHandlers, type RegisteredToolHandler } from '../../src/core/
 import type { ToolResponse } from '../../src/core/response.js';
 import { requestRepairOutputSchema } from '../../src/tools/request-repair/contract.js';
 import { stopSearchOutputSchema } from '../../src/tools/stop-search/contract.js';
+import { createToolTelemetry, type ToolTelemetryEvent } from '../../src/core/telemetry.js';
 
 const runningServers: Server[] = [];
 afterEach(async () => {
@@ -64,6 +65,7 @@ describe('x402 V2 execution boundaries', () => {
       ...baseConfig,
       paymentMode: 'test',
       paymentConfigured: true,
+      telemetry: { payerHmacKey: 'telemetry-test-hmac-key-with-32-bytes-minimum' },
       x402: { payTo: `0x${'34'.repeat(20)}`, network: 'eip155:84532', facilitatorUrl: `http://127.0.0.1:${facilitatorPort}`, facilitatorAuthorization: 'Bearer test-secret-not-for-readiness' },
     };
     const paymentRegistry = toolRegistry.map((tool) => tool.id === 'stop_search' ? { ...tool, availability: 'available' as const, x402: { ...tool.x402, enabled: true } } : tool);
@@ -92,7 +94,9 @@ describe('x402 V2 execution boundaries', () => {
       { id: 'request_repair', handler: async (input, context) => { requestRepairHandlerCalls += 1; return requestRepairRuntime.handler(input, context); } },
       { id: 'stop_search', handler: async (input, context) => { stopSearchHandlerCalls += 1; return stopSearchRuntime.handler(input, context); } },
     ];
-    const app = createHttpApp(config, { payment, handlers, registry: paymentRegistry });
+    const telemetryEvents: ToolTelemetryEvent[] = [];
+    const telemetry = createToolTelemetry({ emit: (event) => telemetryEvents.push(event) });
+    const app = createHttpApp(config, { payment, handlers, registry: paymentRegistry, telemetry });
     const appServer = await new Promise<Server>((resolve) => {
       const server = app.listen(0, '127.0.0.1', () => resolve(server));
     });
@@ -109,6 +113,7 @@ describe('x402 V2 execution boundaries', () => {
     expect(errorRequirement.x402Version).toBe(2);
     expect(errorRequirement.accepts[0]).toMatchObject({ scheme: 'exact', network: 'eip155:84532', payTo: config.x402.payTo, amount: '2000' });
     expect(errorRouteHandlerCalls).toBe(0);
+    expect(telemetryEvents.at(-1)).toMatchObject({ tool_id: 'error_route', channel: 'http', payment_state: 'challenged', price_usd: '0.002' });
 
     const unpaid = await fetch(`${endpoint}/v1/tools/source_route`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input) });
     expect(unpaid.status).toBe(402);
@@ -152,6 +157,10 @@ describe('x402 V2 execution boundaries', () => {
     expect(paidErrorBody.requestId).toBeTruthy();
     expect(paidErrorRoute.headers.get('payment-response')).toBeTruthy();
     expect(errorRouteHandlerCalls).toBe(1);
+    expect(telemetryEvents.at(-1)).toMatchObject({ tool_id: 'error_route', channel: 'http', payment_state: 'settled', result_category: 'connection_failure', payer_fingerprint: expect.stringMatching(/^[\da-f]{64}$/) });
+    expect(JSON.stringify(telemetryEvents)).not.toContain('test-secret-not-for-readiness');
+    expect(JSON.stringify(telemetryEvents)).not.toContain(signer.address);
+    expect(JSON.stringify(telemetryEvents)).not.toContain('ECONNRESET');
 
     const repairInput = { goal: 'retrieve a company profile', request: { method: 'POST', url: 'https://api.example.com/company', headers: { 'content-type': 'application/json' }, body: { company_domain: 'example.com' } }, response: { status: 400, body: 'company_domain is invalid; use current_company_domains' } };
     expect(toolRegistry.find((tool) => tool.id === 'request_repair')?.priceUsd).toBe('0.005');
@@ -188,6 +197,7 @@ describe('x402 V2 execution boundaries', () => {
     expect(unpaidMcpResponse.result.structuredContent.accepts.length).toBeGreaterThan(0);
     expect(unpaidMcpResponse.result.structuredContent).toHaveProperty('extensions.bazaar');
     expect(handlerCalls).toBe(1);
+    expect(telemetryEvents.filter((event) => event.tool_id === 'source_route' && event.channel === 'mcp').at(-1)).toMatchObject({ payment_state: 'challenged', price_usd: '0.02' });
 
     const mcpRequired = unpaidMcpResponse.result.structuredContent as unknown as import('@x402/core/types').PaymentRequired;
     const mcpPayload = await client.createPaymentPayload(mcpRequired);
@@ -205,6 +215,7 @@ describe('x402 V2 execution boundaries', () => {
     expect(unpaidErrorMcpResponse.result.isError).toBe(true);
     expect(unpaidErrorMcpResponse.result.structuredContent.x402Version).toBe(2);
     expect(errorRouteHandlerCalls).toBe(1);
+    expect(telemetryEvents.filter((event) => event.tool_id === 'error_route' && event.channel === 'mcp').at(-1)).toMatchObject({ payment_state: 'challenged', price_usd: '0.002' });
     const paidErrorMcpPayload = await client.createPaymentPayload(unpaidErrorMcpResponse.result.structuredContent);
     const paidErrorMcpParams = attachPaymentToMeta({ name: 'error_route', arguments: errorInput }, paidErrorMcpPayload);
     const paidErrorMcp = await fetch(`${endpoint}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 13, method: 'tools/call', params: paidErrorMcpParams }) });
@@ -212,6 +223,7 @@ describe('x402 V2 execution boundaries', () => {
     expect(paidErrorMcpResponse.result.structuredContent.classification).toBe('connection_failure');
     expect(paidErrorMcpResponse.result._meta['x402/payment-response']).toBeDefined();
     expect(errorRouteHandlerCalls).toBe(2);
+    expect(telemetryEvents.at(-1)).toMatchObject({ tool_id: 'error_route', channel: 'mcp', payment_state: 'settled', result_category: 'connection_failure', payer_fingerprint: expect.stringMatching(/^[\da-f]{64}$/) });
 
     const mcpSdk = new Client({ name: 'fallback-x402-schema-test', version: '1.0.0' });
     await mcpSdk.connect(new StreamableHTTPClientTransport(new URL(`${endpoint}/mcp`)) as never);

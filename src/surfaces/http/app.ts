@@ -17,6 +17,7 @@ import { createMcpHandler } from '../mcp/transport.js';
 import type { X402PaymentIntegration } from '../x402/payment.js';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { createToolTelemetry, decodePaymentResponse, payerFingerprint, resultTelemetry, telemetryPrice, clientFamily, type ToolTelemetry } from '../../core/telemetry.js';
 
 type RateEntry = { startedAt: number; count: number };
 
@@ -97,10 +98,12 @@ export function createHttpApp(config: AppConfig, options: {
   sourceRouteHandler?: ToolHandler<typeof sourceRouteInputSchema, typeof sourceRouteOutputSchema>;
   registry?: readonly ToolRecord[];
   payment?: X402PaymentIntegration;
+  telemetry?: ToolTelemetry;
 } = {}): Express {
   if (config.paymentMode !== 'disabled' && !options.payment) throw new Error('Paid mode requires initialized x402 payment middleware.');
   const app = express();
   const registry = options.registry ?? toolRegistry;
+  const telemetry = options.telemetry ?? createToolTelemetry(config.telemetry.payerHmacKey ? { payerHmacKey: config.telemetry.payerHmacKey } : {});
   let handlers = options.handlers ?? runtimeToolHandlers;
   if (!options.handlers && options.sourceRouteHandler) {
     const injectedHandler = options.sourceRouteHandler;
@@ -113,11 +116,41 @@ export function createHttpApp(config: AppConfig, options: {
   app.set('case sensitive routing', true);
   app.set('strict routing', true);
   app.use(makeRateLimiter(config));
+  app.use((req, res, next) => {
+    const match = /^\/v1\/tools\/([^/]+)$/.exec(req.path);
+    if (!match || req.method !== 'POST') return next();
+    const tool = registry.find((candidate) => candidate.id === match[1]);
+    if (!tool) return next();
+    const startedAt = performance.now();
+    let responsePayload: unknown;
+    const originalJson = res.json.bind(res);
+    res.json = ((body?: unknown) => {
+      responsePayload = body;
+      return originalJson(body);
+    }) as Response['json'];
+    res.once('finish', () => {
+      const paymentHeader = res.getHeader('payment-response');
+      const paymentResponse = decodePaymentResponse(typeof paymentHeader === 'string' ? paymentHeader : undefined);
+      const resultFields = resultTelemetry(tool.id, responsePayload);
+      const state = res.statusCode === 402 ? 'challenged'
+        : paymentResponse ? paymentResponse['success'] === true ? 'settled' : 'settlement_failed'
+          : config.paymentMode === 'disabled' ? 'free'
+            : 'settlement_unconfirmed';
+      telemetry.record({
+        tool_id: tool.id, channel: 'http', payment_mode: config.paymentMode, payment_state: state,
+        price_usd: telemetryPrice(tool), latency_ms: performance.now() - startedAt,
+        client_family: clientFamily(req.get('user-agent')),
+        ...resultFields,
+        ...(state === 'settled' && config.telemetry.payerHmacKey && payerFingerprint(paymentResponse, config.telemetry.payerHmacKey) ? { payer_fingerprint: payerFingerprint(paymentResponse, config.telemetry.payerHmacKey)! } : {}),
+      });
+    });
+    next();
+  });
   if (options.payment) for (const tool of registry.filter((candidate) => candidate.availability === 'available' && candidate.x402.enabled && candidate.x402.resourceType === 'http')) {
     app.post(tool.httpRoute, options.payment.httpMiddleware);
   }
   app.use(express.json({ limit: '64kb' }));
-  const mcp = createMcpHandler(config, registry, handlers, options.payment);
+  const mcp = createMcpHandler(config, registry, handlers, options.payment, telemetry);
   app.locals['mcpClose'] = mcp.close;
   app.get('/', (_req, res) => res.json({ productId: productMetadata.productId, name: productMetadata.productName, description: productMetadata.shortDescription, tagline: productMetadata.tagline, catalog: `${config.publicBaseUrl}/catalog.json`, mcp: `${config.publicBaseUrl}/mcp`, transports: { http: 'active', mcp: 'active' }, payment: { mode: config.paymentMode, priceModel: 'per-call' } }));
   app.get('/healthz', (_req, res) => res.json({ status: 'ok' }));
@@ -125,6 +158,7 @@ export function createHttpApp(config: AppConfig, options: {
     status: 'ready',
     mcp: 'active',
     payment: { mode: config.paymentMode, configured: config.paymentConfigured, ...(config.paymentMode !== 'disabled' ? { network: config.x402.network } : {}) },
+    telemetry: { enabled: true, payerMetricsConfigured: Boolean(config.telemetry.payerHmacKey) },
     search: { provider: config.searchProvider },
     availableTools: registry.filter((tool) => tool.availability === 'available').length,
   }));

@@ -50,7 +50,7 @@ The service binds to `127.0.0.1` so it is reachable only through a local proxy o
 ## Health and readiness
 
 - `GET /healthz` checks that the process responds.
-- `GET /readyz` reports the active search provider, available-tool count, MCP status, payment mode, network, and whether payment configuration is active. It never returns the receiving address, facilitator URL, authorization header, or provider keys.
+- `GET /readyz` reports the active search provider, available-tool count, MCP status, payment mode, network, whether payment configuration is active, and whether payer-fingerprint telemetry is configured. It never returns the receiving address, facilitator URL, authorization header, HMAC key, or provider keys.
 - Paid-mode startup initializes and checks the configured facilitator before opening the listener. If the facilitator cannot initialize, startup fails closed.
 
 The request limiter is in-memory, per process, and keyed by the direct socket address by default. It allows 30 tool/MCP requests per client in a 60-second window. Set `RATE_LIMIT_MAX_REQUESTS` and `RATE_LIMIT_WINDOW_MS` to adjust within validated bounds. For multiple instances, enforce an equivalent aggregate limit at the edge.
@@ -76,6 +76,8 @@ TRUST_PROXY_HOPS=0
 
 The address above is a placeholder only. Set an operator-controlled receiving address. The server does not need a private key to receive x402 payments. If a facilitator requires credentials, put its authorization value in `X402_FACILITATOR_AUTHORIZATION`; it is sent only to the configured facilitator and is omitted from readiness and discovery output.
 
+Optional `TELEMETRY_PAYER_HMAC_KEY` (at least 32 bytes) enables stable, keyed payer fingerprints for unique/repeat payer metrics. It is independent of wallet and facilitator keys. With no key, calls and settlement outcomes are still counted, but unique payer metrics are incomplete. Tool telemetry emits a small JSON event to stdout/journald; it omits prompts, request/response bodies, credentials, raw wallet addresses, raw user-agent strings, IPs, and transaction hashes. Use `journalctl -u fallback.service --since "30 days ago" -o cat | npm run telemetry:report` for aggregate-only metrics; see [metric definitions and retention](TELEMETRY_AND_30_DAY_METRICS.md).
+
 Payment modes:
 
 | Mode | Network | Required configuration | Behavior |
@@ -86,7 +88,7 @@ Payment modes:
 
 Paid modes fail startup if any required setting is absent or invalid. Do not use `disabled` for a public paid service. Production uses an explicitly configured facilitator; the public x402.org facilitator is not assumed to be a mainnet production service.
 
-`source_route` is priced at `$0.02 USD per call` in the canonical registry. HTTP payment middleware is installed before JSON parsing/schema validation and before the runtime handler, so an unpaid request cannot cause publisher discovery or an external Tavily request. MCP uses the x402 MCP V2 tool exchange and wraps only callable registry tools.
+Prices are sourced from `src/core/registry.ts`: `source_route` `$0.02`, `error_route` `$0.002`, `request_repair` `$0.005`, `stop_search` `$0.003`. HTTP payment middleware is installed before JSON parsing/schema validation and before the runtime handler, so an unpaid request cannot cause handler execution. MCP uses the x402 MCP V2 tool exchange and wraps only callable registry tools.
 
 ## Test payment flow
 
@@ -102,4 +104,4 @@ npm run test:x402:e2e
 
 The script first observes an unpaid 402 challenge, signs one test payment with the explicitly supplied test wallet, retries the same source_route call, verifies the normal response and settlement metadata, and prints the request/transaction identifiers. It never prints the key. This command is excluded from normal CI and may use one configured external search request during the paid call.
 
-Do not switch to `PAYMENT_MODE=production` until the deployed test payment succeeds. The first production payment will be a separate real `$0.02` call after the receiving address, production facilitator, production URL, and deployed readiness response have been reviewed.
+Do not switch to `PAYMENT_MODE=production` until the deployed test payment succeeds and the production facilitator is confirmed live for x402 V2 exact on `eip155:8453`. The first mainnet smoke payment must use `error_route` for `$0.002`, followed by independent on-chain verification. Follow [the Base mainnet launch checklist](PRODUCTION_LAUNCH_CHECKLIST.md); it is a procedure only and does not enable mainnet.
