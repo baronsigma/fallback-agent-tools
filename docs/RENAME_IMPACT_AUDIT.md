@@ -1,6 +1,6 @@
 # Product rename impact audit
 
-Audit baseline: repository commit `2324d9c`; this document does not rename the product. Keep tool IDs and routes stable during any future rename.
+Audit baseline: repository commit `7e57a5a`; this document does not rename the product. Keep tool IDs and routes stable during any future rename.
 
 ## Canonical identity and projections
 
