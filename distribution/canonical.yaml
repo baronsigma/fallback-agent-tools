@@ -22,16 +22,6 @@ tools:
     apifyActorId: fallback/source-route
     smitheryServerId: source_route
     glamaServerId: source_route
-  - id: stop_search
-    version: 0.1.0-beta.1
-    name: stop_search
-    status: planned
-    httpRoute: /v1/tools/stop_search
-    mcpName: stop_search
-    priceUsd: "0.02"
-    apifyActorId: fallback/stop-search
-    smitheryServerId: stop_search
-    glamaServerId: stop_search
   - id: error_route
     version: 0.1.0-beta.1
     name: error_route
@@ -52,3 +42,13 @@ tools:
     apifyActorId: fallback/request-repair
     smitheryServerId: request_repair
     glamaServerId: request_repair
+  - id: stop_search
+    version: 0.1.0-beta.1
+    name: stop_search
+    status: available
+    httpRoute: /v1/tools/stop_search
+    mcpName: stop_search
+    priceUsd: "0.003"
+    apifyActorId: fallback/stop-search
+    smitheryServerId: stop_search
+    glamaServerId: stop_search

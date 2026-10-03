@@ -248,58 +248,6 @@
       }
     },
     {
-      "id": "stop_search",
-      "version": "0.1.0-beta.1",
-      "name": "stop_search",
-      "description": "Determine whether a bounded search has gathered enough negative evidence to reasonably stop. Planned and unavailable.",
-      "category": "search-quality",
-      "inputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "object",
-        "properties": {},
-        "additionalProperties": false
-      },
-      "outputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "status"
-        ],
-        "additionalProperties": {}
-      },
-      "price": {
-        "amount": "0.02",
-        "currency": "USD",
-        "model": "pay-per-call"
-      },
-      "availability": "planned",
-      "httpRoute": "/v1/tools/stop_search",
-      "mcpName": "stop_search",
-      "examples": [
-        {
-          "title": "Planned schema placeholder",
-          "input": {}
-        }
-      ],
-      "latencyTargetMs": 1000,
-      "x402": {
-        "resourceType": "http",
-        "enabled": false,
-        "discoveryExtension": "bazaar",
-        "active": false
-      },
-      "distribution": {
-        "apifyActorId": "fallback/stop-search",
-        "smitheryServerId": "stop_search",
-        "glamaServerId": "stop_search"
-      }
-    },
-    {
       "id": "error_route",
       "version": "0.1.0-beta.1",
       "name": "error_route",
@@ -1021,6 +969,319 @@
         "apifyActorId": "fallback/request-repair",
         "smitheryServerId": "request_repair",
         "glamaServerId": "request_repair"
+      }
+    },
+    {
+      "id": "stop_search",
+      "version": "0.1.0-beta.1",
+      "name": "stop_search",
+      "description": "Decide whether continuing a bounded search is worth another query or paid retrieval. Use after several search or source checks when you need to decide whether to continue or return a scoped not-found result. It does not prove universal absence and performs no searches itself.",
+      "category": "search-quality",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "goal": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "checks": {
+            "default": [],
+            "maxItems": 40,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "target": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300
+                },
+                "method": {
+                  "type": "string",
+                  "enum": [
+                    "direct",
+                    "search",
+                    "documentation",
+                    "api_catalog",
+                    "registry",
+                    "browser",
+                    "other"
+                  ]
+                },
+                "result": {
+                  "type": "string",
+                  "enum": [
+                    "found",
+                    "not_found",
+                    "inconclusive",
+                    "error",
+                    "blocked",
+                    "contradictory"
+                  ]
+                },
+                "authority": {
+                  "type": "string",
+                  "enum": [
+                    "primary",
+                    "official",
+                    "secondary",
+                    "general",
+                    "unknown"
+                  ]
+                },
+                "coverage": {
+                  "type": "string",
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ]
+                },
+                "exhaustive": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "checked_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                }
+              },
+              "required": [
+                "target",
+                "method",
+                "result",
+                "authority",
+                "coverage"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "remaining_routes": {
+            "default": [],
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "route": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300
+                },
+                "expected_value": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "low",
+                        "medium",
+                        "high"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "const": "unknown"
+                    }
+                  ]
+                },
+                "estimated_cost_usd": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 10000
+                }
+              },
+              "required": [
+                "route",
+                "expected_value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "search_budget": {
+            "type": "object",
+            "properties": {
+              "calls_used": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "calls_remaining": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "cost_used_usd": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10000
+              },
+              "cost_remaining_usd": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10000
+              }
+            },
+            "additionalProperties": false
+          },
+          "risk": {
+            "default": "medium",
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "stop",
+              "continue",
+              "insufficient_evidence"
+            ]
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "reason_codes": {
+            "minItems": 1,
+            "maxItems": 6,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "primary_sources_checked",
+                "exhaustive_source_checked",
+                "independent_routes_checked",
+                "routes_redundant",
+                "remaining_expected_value_low",
+                "budget_exhausted",
+                "budget_nearly_exhausted",
+                "evidence_too_shallow",
+                "high_risk_requires_more_coverage",
+                "promising_route_remaining",
+                "insufficient_independence",
+                "contradictory_results"
+              ]
+            }
+          },
+          "coverage": {
+            "type": "object",
+            "properties": {
+              "primary": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "secondary": {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              "independent_routes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 40
+              }
+            },
+            "required": [
+              "primary",
+              "secondary",
+              "independent_routes"
+            ],
+            "additionalProperties": false
+          },
+          "next_action": {
+            "type": "string",
+            "enum": [
+              "return_not_found_with_scope",
+              "continue_search",
+              "use_found_candidate",
+              "gather_more_evidence"
+            ]
+          },
+          "scope_note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "limits": {
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 180
+            }
+          }
+        },
+        "required": [
+          "decision",
+          "confidence",
+          "reason_codes",
+          "coverage",
+          "next_action",
+          "scope_note",
+          "limits"
+        ],
+        "additionalProperties": false
+      },
+      "price": {
+        "amount": "0.003",
+        "currency": "USD",
+        "model": "pay-per-call"
+      },
+      "availability": "available",
+      "httpRoute": "/v1/tools/stop_search",
+      "mcpName": "stop_search",
+      "examples": [
+        {
+          "title": "Assess completed primary-source checks",
+          "input": {
+            "goal": "Find the official dataset API",
+            "risk": "low",
+            "checks": [
+              {
+                "target": "https://publisher.example",
+                "method": "direct",
+                "result": "not_found",
+                "authority": "primary",
+                "coverage": "high",
+                "exhaustive": true
+              }
+            ]
+          },
+          "expected": "stop with a scoped not-found result because the caller reports an exhaustive primary-source check"
+        }
+      ],
+      "latencyTargetMs": 25,
+      "x402": {
+        "resourceType": "http",
+        "enabled": true,
+        "discoveryExtension": "bazaar",
+        "active": false
+      },
+      "distribution": {
+        "apifyActorId": "fallback/stop-search",
+        "smitheryServerId": "stop_search",
+        "glamaServerId": "stop_search"
       }
     }
   ]

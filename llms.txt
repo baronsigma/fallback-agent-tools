@@ -25,13 +25,6 @@ Price: $0.02 USD per call (x402 inactive)
 HTTP: https://fallback.test/v1/tools/source_route
 MCP: source_route
 
-### stop_search
-Determine whether a bounded search has gathered enough negative evidence to reasonably stop. Planned and unavailable.
-Status: planned
-Price: $0.02 USD per call (x402 inactive)
-HTTP: https://fallback.test/v1/tools/stop_search
-MCP: not callable (planned: stop_search)
-
 ### error_route
 Diagnose a failed API, HTTP, MCP, or tool request and return a structured, bounded next action. Use it after a request fails instead of repeatedly retrying or spending a large reasoning loop diagnosing common errors. Provide a status, response, or error text; it does not execute requests or verify undocumented fixes.
 Status: available
@@ -45,6 +38,13 @@ Status: available
 Price: $0.005 USD per call (x402 inactive)
 HTTP: https://fallback.test/v1/tools/request_repair
 MCP: request_repair
+
+### stop_search
+Decide whether continuing a bounded search is worth another query or paid retrieval. Use after several search or source checks when you need to decide whether to continue or return a scoped not-found result. It does not prove universal absence and performs no searches itself.
+Status: available
+Price: $0.003 USD per call (x402 inactive)
+HTTP: https://fallback.test/v1/tools/stop_search
+MCP: stop_search
 
 ## Related
 - FACTRAIL MCP: https://factrail.online/llms.txt. Separate service for source-backed facts with support levels, unresolved fields, and receipts.

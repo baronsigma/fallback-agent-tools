@@ -20,6 +20,7 @@ import { toolRegistry } from '../../src/core/registry.js';
 import { runtimeToolHandlers, type RegisteredToolHandler } from '../../src/core/handlers.js';
 import type { ToolResponse } from '../../src/core/response.js';
 import { requestRepairOutputSchema } from '../../src/tools/request-repair/contract.js';
+import { stopSearchOutputSchema } from '../../src/tools/stop-search/contract.js';
 
 const runningServers: Server[] = [];
 afterEach(async () => {
@@ -65,12 +66,14 @@ describe('x402 V2 execution boundaries', () => {
       paymentConfigured: true,
       x402: { payTo: `0x${'34'.repeat(20)}`, network: 'eip155:84532', facilitatorUrl: `http://127.0.0.1:${facilitatorPort}`, facilitatorAuthorization: 'Bearer test-secret-not-for-readiness' },
     };
-    const payment = await createX402PaymentIntegration(config, toolRegistry);
+    const paymentRegistry = toolRegistry.map((tool) => tool.id === 'stop_search' ? { ...tool, availability: 'available' as const, x402: { ...tool.x402, enabled: true } } : tool);
+    const payment = await createX402PaymentIntegration(config, paymentRegistry);
     if (!payment) throw new Error('Expected payment integration.');
     let handlerCalls = 0;
     let paidSearchCalls = 0;
     let errorRouteHandlerCalls = 0;
     let requestRepairHandlerCalls = 0;
+    let stopSearchHandlerCalls = 0;
     const sourceRouteHandler: ToolHandler<typeof sourceRouteInputSchema, typeof sourceRouteOutputSchema> = async (rawInput, context) => {
       parseSourceRouteInput(rawInput);
       handlerCalls += 1;
@@ -81,12 +84,15 @@ describe('x402 V2 execution boundaries', () => {
     if (!errorRouteHandler) throw new Error('Expected error_route handler.');
     const requestRepairRuntime = runtimeToolHandlers.find((entry) => entry.id === 'request_repair');
     if (!requestRepairRuntime) throw new Error('Expected request_repair handler.');
+    const stopSearchRuntime = runtimeToolHandlers.find((entry) => entry.id === 'stop_search');
+    if (!stopSearchRuntime) throw new Error('Expected stop_search handler.');
     const handlers: RegisteredToolHandler[] = [
       { id: 'source_route', handler: async (rawInput, context) => sourceRouteHandler(parseSourceRouteInput(rawInput), context) as Promise<ToolResponse<unknown>> },
       { id: 'error_route', handler: async (input, context) => { errorRouteHandlerCalls += 1; return errorRouteHandler.handler(input, context); } },
       { id: 'request_repair', handler: async (input, context) => { requestRepairHandlerCalls += 1; return requestRepairRuntime.handler(input, context); } },
+      { id: 'stop_search', handler: async (input, context) => { stopSearchHandlerCalls += 1; return stopSearchRuntime.handler(input, context); } },
     ];
-    const app = createHttpApp(config, { payment, handlers });
+    const app = createHttpApp(config, { payment, handlers, registry: paymentRegistry });
     const appServer = await new Promise<Server>((resolve) => {
       const server = app.listen(0, '127.0.0.1', () => resolve(server));
     });
@@ -151,6 +157,9 @@ describe('x402 V2 execution boundaries', () => {
     expect(toolRegistry.find((tool) => tool.id === 'request_repair')?.priceUsd).toBe('0.005');
     const unpaidRepairHttp = await fetch(`${endpoint}/v1/tools/request_repair`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(repairInput) });
     expect(unpaidRepairHttp.status).toBe(402);
+    const repairRequirement = decodePaymentRequiredHeader(unpaidRepairHttp.headers.get('payment-required') ?? '');
+    expect(repairRequirement.extensions).toHaveProperty('bazaar');
+    expect(JSON.stringify(repairRequirement.extensions?.['bazaar'])).not.toContain('#/$defs/');
     expect(requestRepairHandlerCalls).toBe(0);
     const paidRepairHttp = await fetchWithPayment(`${endpoint}/v1/tools/request_repair`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(repairInput) });
     expect(paidRepairHttp.status).toBe(200);
@@ -159,6 +168,18 @@ describe('x402 V2 execution boundaries', () => {
     expect(paidRepairBody.success).toBe(true);
     expect(requestRepairOutputSchema.safeParse(paidRepairBody.result).success).toBe(true);
     expect(requestRepairHandlerCalls).toBe(1);
+
+    const stopSearchInput = { goal: 'Find official dataset API', risk: 'low', checks: [{ target: 'https://official.example/api', method: 'direct', result: 'not_found', authority: 'primary', coverage: 'high', exhaustive: true }] };
+    const unpaidStopHttp = await fetch(`${endpoint}/v1/tools/stop_search`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(stopSearchInput) });
+    expect(unpaidStopHttp.status).toBe(402);
+    expect(decodePaymentRequiredHeader(unpaidStopHttp.headers.get('payment-required') ?? '').accepts[0]).toMatchObject({ amount: '3000', network: 'eip155:84532' });
+    expect(stopSearchHandlerCalls).toBe(0);
+    const paidStopHttp = await fetchWithPayment(`${endpoint}/v1/tools/stop_search`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(stopSearchInput) });
+    expect(paidStopHttp.status).toBe(200);
+    expect(paidStopHttp.headers.get('payment-response')).toBeTruthy();
+    const paidStopHttpBody = await paidStopHttp.json() as { result: unknown };
+    expect(stopSearchOutputSchema.safeParse(paidStopHttpBody.result).success).toBe(true);
+    expect(stopSearchHandlerCalls).toBe(1);
 
     const unpaidMcp = await fetch(`${endpoint}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'source_route', arguments: input } }) });
     const unpaidMcpResponse = await parseMcpResponse(unpaidMcp) as unknown as { result: { isError: boolean; structuredContent: { x402Version: number; accepts: unknown[] } } };
@@ -203,7 +224,11 @@ describe('x402 V2 execution boundaries', () => {
     expect(listedError).not.toHaveProperty('outputSchema');
     const listedRepair = listedTools.tools.find((tool) => tool.name === 'request_repair');
     expect(listedRepair?.inputSchema).toBeDefined();
+    expect(listedRepair?.inputSchema).toMatchObject(toolRegistry.find((tool) => tool.id === 'request_repair')!.inputSchema.toJSONSchema({ io: 'input' }));
     expect(listedRepair).not.toHaveProperty('outputSchema');
+    const listedStop = listedTools.tools.find((tool) => tool.name === 'stop_search');
+    expect(listedStop?.inputSchema).toBeDefined();
+    expect(listedStop).not.toHaveProperty('outputSchema');
 
     const handlerCountsBeforeRawCalls = { source: handlerCalls, error: errorRouteHandlerCalls };
     const rawUnpaidSource = await mcpSdk.callTool({ name: 'source_route', arguments: input });
@@ -226,7 +251,14 @@ describe('x402 V2 execution boundaries', () => {
     expect(rawUnpaidRepair.isError).toBe(true);
     expect(repairChallenge.x402Version).toBe(2);
     expect(repairChallenge.accepts[0]).toMatchObject({ scheme: 'exact', network: 'eip155:84532', amount: '5000' });
+    expect(JSON.stringify(repairChallenge.extensions?.['bazaar'])).not.toContain('#/$defs/');
     expect(requestRepairHandlerCalls).toBe(1);
+
+    const rawUnpaidStop = await mcpSdk.callTool({ name: 'stop_search', arguments: stopSearchInput });
+    const rawStopChallenge = rawUnpaidStop.structuredContent as unknown as import('@x402/core/types').PaymentRequired;
+    expect(rawUnpaidStop.isError).toBe(true);
+    expect(rawStopChallenge.accepts[0]).toMatchObject({ scheme: 'exact', network: 'eip155:84532', amount: '3000' });
+    expect(stopSearchHandlerCalls).toBe(1);
 
     const malformedMcpInput = await mcpSdk.callTool({ name: 'error_route', arguments: { response: { status: 99 } } });
     expect(malformedMcpInput.isError).toBe(true);
@@ -260,6 +292,14 @@ describe('x402 V2 execution boundaries', () => {
     expect(requestRepairOutputSchema.safeParse(wrappedRepairBody.result).success).toBe(true);
     expect(wrappedRepairBody.requestId).toBeTruthy();
     expect(requestRepairHandlerCalls).toBe(2);
+
+    const wrappedStop = await officialMcp.callTool('stop_search', stopSearchInput);
+    expect(wrappedStop.paymentMade).toBe(true);
+    expect(wrappedStop.paymentResponse?.success).toBe(true);
+    const wrappedStopBody = JSON.parse((((wrappedStop.content as unknown) as Array<{ text: string }>)[0] as { text: string }).text) as { result: unknown; requestId: string };
+    expect(stopSearchOutputSchema.safeParse(wrappedStopBody.result).success).toBe(true);
+    expect(wrappedStopBody.requestId).toBeTruthy();
+    expect(stopSearchHandlerCalls).toBe(2);
     await mcpSdk.close();
 
     const freeErrorTool = toolRegistry.find((tool) => tool.id === 'error_route');
@@ -278,8 +318,9 @@ describe('x402 V2 execution boundaries', () => {
     expect(freeErrorTool.outputSchema.safeParse(freeCall.structuredContent).success).toBe(true);
     await freeClient.close();
 
-    const planned = await fetch(`${endpoint}/v1/tools/stop_search`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
-    expect(planned.status).toBe(404);
+    const unpaidStopAgain = await fetch(`${endpoint}/v1/tools/stop_search`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(stopSearchInput) });
+    expect(unpaidStopAgain.status).toBe(402);
+    expect(stopSearchHandlerCalls).toBe(2);
     expect(handlerCalls).toBe(3);
     const ready = await (await fetch(`${endpoint}/readyz`)).json() as { payment: Record<string, unknown> };
     expect(JSON.stringify(ready)).not.toContain('facilitator');

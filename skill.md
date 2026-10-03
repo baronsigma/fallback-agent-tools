@@ -78,6 +78,35 @@ call API → inspect failure → error_route → classification=schema_mismatch
 
 `error_route` diagnoses and recommends. `request_repair` transforms only when supplied evidence justifies the change.
 
+## WHEN TO USE `stop_search`
+
+- Several source, browser, or search routes have already been checked.
+- Search is becoming repetitive and another query or retrieval has a cost.
+- You need a bounded decision to continue or return a scoped not-found result.
+
+## WHEN NOT TO USE `stop_search`
+
+Do not use it when no meaningful search has happened, an obvious high-value route remains unchecked, a universal non-existence claim must be proved, or a high-risk task has shallow coverage. It makes no searches and never proves universal absence; a stop result applies only to the caller-supplied checks.
+
+HTTP: `POST https://fallback.factrail.online/v1/tools/stop_search`<br>
+MCP tool: `stop_search`<br>
+Price: `$0.003` per call.
+
+Example input:
+
+```json
+{"goal":"Find the official dataset API","risk":"low","checks":[{"target":"https://publisher.example","method":"direct","result":"not_found","authority":"primary","coverage":"high"},{"target":"https://docs.publisher.example","method":"documentation","result":"not_found","authority":"official","coverage":"medium"}],"remaining_routes":[{"route":"another general web query","expected_value":"low","estimated_cost_usd":0.01}],"search_budget":{"calls_used":4,"calls_remaining":2,"cost_used_usd":0.018,"cost_remaining_usd":0.02}}
+```
+
+## Four-tool loop
+
+```text
+source_route: Where should I look?
+error_route: Why did my call fail?
+request_repair: Can I safely fix the request?
+stop_search: Is further searching worth it?
+```
+
 ## Payment behavior
 
 In paid mode, unpaid HTTP calls receive an x402 V2 HTTP 402 challenge before tool execution. MCP tool calls return the x402 payment challenge in MCP metadata. Use an official x402-compatible payer flow; never retry with credentials or a network inferred from anything other than the challenge.

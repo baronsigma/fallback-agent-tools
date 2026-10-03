@@ -26,6 +26,21 @@ call API → failure → error_route → classification=schema_mismatch
 
 `error_route` diagnoses and recommends; `request_repair` transforms only when the supplied evidence supports a minimal change.
 
+## When to call `stop_search`
+
+Call it after several source, browser, or search checks when another query or paid retrieval has a cost and the search is becoming repetitive. Include the distinct targets checked, their result, authority, coverage, any remaining routes and the search budget. It weighs independence, freshness, risk and expected value; a result of `stop` is scoped to those supplied checks.
+
+Do not call it before meaningful search, while an obvious high-value route remains unchecked, to prove universal non-existence, or for a high-risk task with shallow coverage. It does not perform searches and does not claim that a route or API does not exist everywhere.
+
+## Four-tool product loop
+
+| Tool | Agent question |
+|---|---|
+| `source_route` | Where should I look? |
+| `error_route` | Why did my call fail? |
+| `request_repair` | Can I safely fix the request? |
+| `stop_search` | Is further searching worth it? |
+
 ## Reading the result
 
 - `routes_found`: try routes in order. `score` is a deterministic ranking, not a probability.
@@ -38,6 +53,6 @@ call API → failure → error_route → classification=schema_mismatch
 { "mcpServers": { "fallback": { "url": "https://fallback.factrail.online/mcp" } } }
 ```
 
-The hosted service charges $0.02 per `source_route` call and $0.002 per `error_route` call via x402, **currently on the Base Sepolia test network only** (`eip155:84532`, testnet USDC; not real billing). MCP clients without x402 support receive a payment-required result; a payment-capable client (for example one built with `@x402/mcp`) is required for paid tool calls. No paid call has yet been independently verified on-chain.
+The hosted service uses x402 V2 pay-per-call on the Base Sepolia test network (`eip155:84532`; test USDC, not real billing). Current prices are `source_route` $0.02, `error_route` $0.002, `request_repair` $0.005, and `stop_search` $0.003. HTTP and MCP payment flows for the existing tools have been validated; this milestone does not make a real paid `stop_search` call. MCP clients without x402 support receive a payment-required result; a payment-capable client (for example one built with `@x402/mcp`) is required for paid tool calls.
 
 To use it with no payment at all, self-host with `PAYMENT_MODE=disabled` (see the README).

@@ -17,7 +17,7 @@ describe('canonical registry', () => {
     expect(isValidPrice('0.0000001')).toBe(false);
     expect(isValidPrice('-1')).toBe(false);
     expect(toolRegistry.find((tool) => tool.id === 'source_route')?.priceUsd).toBe('0.02');
-    expect(toolRegistry.find((tool) => tool.id === 'stop_search')?.priceUsd).toBe('0.02');
+    expect(toolRegistry.find((tool) => tool.id === 'stop_search')?.priceUsd).toBe('0.003');
     expect(toolRegistry.find((tool) => tool.id === 'error_route')?.priceUsd).toBe('0.002');
   });
 

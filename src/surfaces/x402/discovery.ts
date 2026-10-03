@@ -20,7 +20,7 @@ export function makeX402Discovery(baseUrl: string, config: Pick<AppConfig, 'paym
       type: tool.x402.resourceType,
       toolName: tool.mcpName,
       description: tool.description,
-      inputSchema: tool.inputSchema.toJSONSchema({ io: 'input' }),
+      inputSchema: tool.discoveryInputSchema?.() ?? tool.inputSchema.toJSONSchema({ io: 'input' }),
       priceUsd: tool.priceUsd,
       availability: tool.availability,
       enabled: tool.x402.enabled,

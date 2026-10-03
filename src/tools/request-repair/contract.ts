@@ -75,6 +75,34 @@ export const requestRepairInputSchema = z.object({
   }
 });
 
+/**
+ * Bazaar's embedded schema validator does not resolve recursive local refs.
+ * Keep the runtime Zod schema untouched and project only its discovery form:
+ * recursive arbitrary JSON nodes expand once, then use `{}` for nested values.
+ */
+export function getRequestRepairDiscoveryInputSchema(): Record<string, unknown> {
+  const root = requestRepairInputSchema.toJSONSchema({ io: 'input' }) as Record<string, unknown>;
+  const expand = (value: unknown, activeRefs: ReadonlySet<string>, depth: number): unknown => {
+    if (depth > 32) return {};
+    if (Array.isArray(value)) return value.map((item) => expand(item, activeRefs, depth + 1));
+    if (!value || typeof value !== 'object') return value;
+    const object = value as Record<string, unknown>;
+    const ref = object['$ref'];
+    if (typeof ref === 'string' && ref.startsWith('#/$defs/')) {
+      if (activeRefs.has(ref)) return {};
+      const definition = root['$defs'];
+      const target = typeof definition === 'object' && definition !== null
+        ? (definition as Record<string, unknown>)[decodeURIComponent(ref.slice('#/$defs/'.length).replaceAll('~1', '/').replaceAll('~0', '~'))]
+        : undefined;
+      return target === undefined ? {} : expand(target, new Set([...activeRefs, ref]), depth + 1);
+    }
+    return Object.fromEntries(Object.entries(object)
+      .filter(([key]) => key !== '$defs')
+      .map(([key, child]) => [key, expand(child, activeRefs, depth + 1)]));
+  };
+  return expand(root, new Set(), 0) as Record<string, unknown>;
+}
+
 const safeRequestSchema = z.object({
   method: z.string().optional(),
   url: z.string().optional(),

@@ -15,7 +15,14 @@
 
 Fallback is a small paid recovery and decision layer for autonomous agents. When an agent gets stuck, uncertain, or receives a bad tool/API response, it offers a cheap, bounded next move without requiring a large reasoning loop.
 
-The available tools are `source_route` ($0.02/call), which finds likely authoritative or machine-readable sources, and `error_route` ($0.002/call), which classifies a failed request and recommends a bounded next action. `stop_search` remains planned. Neither tool replaces agent reasoning or claims certainty beyond its checked evidence.
+Fallback provides four small paid utilities for bounded recovery decisions:
+
+- `source_route` ($0.02): **Where should I look?** Find likely authoritative or machine-readable sources.
+- `error_route` ($0.002): **Why did my call fail?** Classify a failed request and recommend a bounded next action.
+- `request_repair` ($0.005): **Can I safely fix the request?** Propose the smallest change supported by caller-supplied evidence.
+- `stop_search` ($0.003): **Is further searching worth it?** Decide whether more bounded search effort is justified by the evidence and remaining cost.
+
+These tools do not replace agent reasoning, and `stop_search` never proves universal absence.
 
 ## Hosted beta
 
@@ -26,7 +33,7 @@ The public beta is available at [fallback.factrail.online](https://fallback.fact
 Use `source_route` when an agent knows **what** it needs and **which publisher** (a domain or start URL), but not **how** to get it in machine-readable form: an API, OpenAPI spec, bulk download, dataset or feed.
 
 - Good fit: "Get the latest population dataset from Eurostat", "Find a JSON/CSV route for this agency's statistics", before the agent starts browsing page by page.
-- Not a fit: general web research, answering a factual question, or verifying a fact (for source-backed facts, see [FACTRAIL MCP](https://github.com/baronsigma/factrail)). `stop_search` remains planned.
+- Not a fit: general web research, answering a factual question, or verifying a fact (for source-backed facts, see [FACTRAIL MCP](https://github.com/baronsigma/factrail)).
 
 How to read the result:
 - `status: routes_found`: try routes in order. `score` is a deterministic ranking, **not** a probability or confidence.

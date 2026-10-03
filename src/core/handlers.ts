@@ -7,6 +7,8 @@ import { handleErrorRoute } from '../tools/error-route/handler.js';
 import { errorRouteInputSchema } from '../tools/error-route/contract.js';
 import { handleRequestRepair } from '../tools/request-repair/handler.js';
 import { requestRepairInputSchema } from '../tools/request-repair/contract.js';
+import { handleStopSearch } from '../tools/stop-search/handler.js';
+import { stopSearchInputSchema } from '../tools/stop-search/contract.js';
 
 export type RegisteredToolHandler = { id: string; handler: AnyToolHandler };
 
@@ -16,6 +18,7 @@ export const runtimeToolHandlers: readonly RegisteredToolHandler[] = [
   { id: 'source_route', handler: async (input, context): Promise<ToolResponse<unknown>> => sourceRoute(parseSourceRouteInput(input), context) },
   { id: 'error_route', handler: async (input, context): Promise<ToolResponse<unknown>> => handleErrorRoute(errorRouteInputSchema.parse(input), context) },
   { id: 'request_repair', handler: async (input, context): Promise<ToolResponse<unknown>> => handleRequestRepair(requestRepairInputSchema.parse(input), context) },
+  { id: 'stop_search', handler: async (input, context): Promise<ToolResponse<unknown>> => handleStopSearch(stopSearchInputSchema.parse(input), context) },
 ];
 
 export function validateRuntimeHandlers(

@@ -63,16 +63,19 @@ describe('public HTTP scaffold', () => {
       const beforeMcp = publisherFetches;
       const invalidInput = await fetch(`${base}/v1/tools/source_route`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ goal: 'Find records', domain: '127.0.0.1' }) });
       expect(invalidInput.status).toBe(400);
-      const unavailable = await fetch(`${base}/v1/tools/stop_search`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
-      expect(unavailable.status).toBe(404);
+      const stopSearch = await fetch(`${base}/v1/tools/stop_search`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+      expect(stopSearch.status).toBe(200);
+      expect((await stopSearch.json()).result.decision).toBe('insufficient_evidence');
       const list = await fetch(`${base}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }) });
       expect(list.status).toBe(200);
       const toolsList = await parseMcpResponse(list) as unknown as { result: { tools: Array<{ name: string; inputSchema: unknown; outputSchema?: unknown }> } };
-      expect(toolsList.result.tools.map((tool) => tool.name)).toEqual(['source_route', 'error_route', 'request_repair']);
+      expect(toolsList.result.tools.map((tool) => tool.name)).toEqual(['source_route', 'error_route', 'request_repair', 'stop_search']);
       expect(toolsList.result.tools[0]?.inputSchema).toMatchObject(toolRegistry[0]!.inputSchema.toJSONSchema({ io: 'input' }));
       expect(toolsList.result.tools[0]?.outputSchema).toMatchObject(toolRegistry[0]!.outputSchema.toJSONSchema());
       expect(toolsList.result.tools[1]?.inputSchema).toMatchObject(toolRegistry.find((tool) => tool.id === 'error_route')!.inputSchema.toJSONSchema({ io: 'input' }));
       expect(toolsList.result.tools[2]?.inputSchema).toMatchObject(toolRegistry.find((tool) => tool.id === 'request_repair')!.inputSchema.toJSONSchema({ io: 'input' }));
+      expect(toolsList.result.tools[3]?.inputSchema).toMatchObject(toolRegistry.find((tool) => tool.id === 'stop_search')!.inputSchema.toJSONSchema({ io: 'input' }));
+      expect(toolsList.result.tools[3]?.outputSchema).toMatchObject(toolRegistry.find((tool) => tool.id === 'stop_search')!.outputSchema.toJSONSchema());
       const mcpExecution = await fetch(`${base}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'source_route', arguments: { goal: 'Find schema', domain: 'statistics.test' } } }) });
       expect(mcpExecution.status).toBe(200);
       const mcpResult = await parseMcpResponse(mcpExecution) as unknown as { result: { structuredContent: { status: string }; _meta: { fallback: { requestId: string; execution: unknown } } } };
@@ -88,6 +91,8 @@ describe('public HTTP scaffold', () => {
       const skillText = await skill.text();
       expect(skillText).toContain('## Use `error_route` when');
       expect(skillText).toContain('## Use `request_repair` when');
+      expect(skillText).toContain('## WHEN TO USE `stop_search`');
+      expect(skillText).toContain('## WHEN NOT TO USE `stop_search`');
       expect(publisherFetches).toBeGreaterThan(beforeMcp);
     } finally {
       await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));

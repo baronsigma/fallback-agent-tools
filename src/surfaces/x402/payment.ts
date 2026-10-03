@@ -22,8 +22,8 @@ function asObject(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function discoverySchema(tool: ToolRecord): Record<string, unknown> {
-  const schema = structuredClone(asObject(tool.inputSchema.toJSONSchema({ io: 'input' })));
+export function getBazaarDiscoveryInputSchema(tool: ToolRecord): Record<string, unknown> {
+  const schema = structuredClone(asObject(tool.discoveryInputSchema?.() ?? tool.inputSchema.toJSONSchema({ io: 'input' })));
   const stripUnknownFormat = (value: unknown): void => {
     if (!value || typeof value !== 'object') return;
     if (Array.isArray(value)) { value.forEach(stripUnknownFormat); return; }
@@ -56,7 +56,7 @@ export async function createX402PaymentIntegration(config: AppConfig, registry: 
       bodyType: 'json',
       description: tool.description,
       input,
-      inputSchema: discoverySchema(tool),
+      inputSchema: getBazaarDiscoveryInputSchema(tool),
     });
     return [`POST ${tool.httpRoute}`, {
       accepts: [{ scheme: 'exact', network: networkId, payTo, price: `$${tool.priceUsd}` }],
@@ -73,7 +73,7 @@ export async function createX402PaymentIntegration(config: AppConfig, registry: 
       toolName: tool.mcpName,
       description: tool.description,
       transport: 'streamable-http',
-      inputSchema: discoverySchema(tool),
+      inputSchema: getBazaarDiscoveryInputSchema(tool),
       example: tool.examples[0]?.input ?? {},
     });
     const paid = createPaymentWrapper(resourceServer, {

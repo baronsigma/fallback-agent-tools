@@ -16,12 +16,13 @@ async function generateFixture(outputDir: string): Promise<void> {
 
 describe('generated projections', () => {
   it('keeps HTTP and MCP identifiers tied to the registry', () => {
-    const spec = makeOpenApi(baseUrl) as { paths: Record<string, { post: { operationId: string; responses: Record<string, unknown>; 'x-fallback-x402-active': boolean } }> };
+    const spec = makeOpenApi(baseUrl) as { paths: Record<string, { post: { operationId: string; responses: Record<string, unknown>; 'x-fallback-x402-active': boolean; 'x-fallback-price-usd': string } }> };
     for (const tool of toolRegistry.filter((entry) => entry.availability === 'available')) {
       expect(spec.paths[tool.httpRoute]?.['post']?.operationId).toBe(tool.id);
       expect(tool.mcpName).toBe(tool.publicName);
     }
-    expect(spec.paths['/v1/tools/stop_search']).toBeUndefined();
+    expect(spec.paths['/v1/tools/stop_search']?.post.operationId).toBe('stop_search');
+    expect(spec.paths['/v1/tools/stop_search']?.post['x-fallback-price-usd']).toBe('0.003');
     expect(spec.paths['/v1/tools/error_route']?.post.operationId).toBe('error_route');
     expect(spec.paths['/v1/tools/error_route']?.post['x-fallback-x402-active']).toBe(false);
     expect(spec.paths['/v1/tools/source_route']?.post['x-fallback-x402-active']).toBe(false);
@@ -31,6 +32,8 @@ describe('generated projections', () => {
     expect(paidSpec.paths['/v1/tools/source_route']?.post.responses['402']).toBeDefined();
     expect(paidSpec.paths['/v1/tools/error_route']?.post['x-fallback-x402-active']).toBe(true);
     expect(paidSpec.paths['/v1/tools/error_route']?.post.responses['402']).toBeDefined();
+    expect(paidSpec.paths['/v1/tools/stop_search']?.post['x-fallback-x402-active']).toBe(true);
+    expect(paidSpec.paths['/v1/tools/stop_search']?.post.responses['402']).toBeDefined();
   });
 
   it('matches generated catalog', async () => {

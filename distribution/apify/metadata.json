@@ -17,18 +17,6 @@
       }
     },
     {
-      "id": "stop_search",
-      "name": "stop_search",
-      "status": "planned",
-      "mcpName": "stop_search",
-      "httpRoute": "/v1/tools/stop_search",
-      "marketplaceIds": {
-        "apifyActorId": "fallback/stop-search",
-        "smitheryServerId": "stop_search",
-        "glamaServerId": "stop_search"
-      }
-    },
-    {
       "id": "error_route",
       "name": "error_route",
       "status": "available",
@@ -50,6 +38,18 @@
         "apifyActorId": "fallback/request-repair",
         "smitheryServerId": "request_repair",
         "glamaServerId": "request_repair"
+      }
+    },
+    {
+      "id": "stop_search",
+      "name": "stop_search",
+      "status": "available",
+      "mcpName": "stop_search",
+      "httpRoute": "/v1/tools/stop_search",
+      "marketplaceIds": {
+        "apifyActorId": "fallback/stop-search",
+        "smitheryServerId": "stop_search",
+        "glamaServerId": "stop_search"
       }
     }
   ]
