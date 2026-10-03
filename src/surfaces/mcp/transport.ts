@@ -29,11 +29,17 @@ export function createMcpHandler(config: AppConfig, registry: readonly ToolRecor
         };
       };
       const callback = payment?.wrapMcpTool(tool, execute) ?? execute;
+      // x402 MCP challenges use PaymentRequired as structuredContent before execution,
+      // while successful calls use the registry's business output schema. The installed
+      // x402 packages do not export a runtime PaymentRequired schema we can safely union
+      // with the business schema, so do not advertise a misleading single outputSchema
+      // for paid MCP tools. Keep input validation and the canonical registry untouched.
+      const outputSchema = payment && tool.x402.enabled ? undefined : tool.outputSchema;
       server.registerTool(tool.mcpName, {
         title: tool.publicName,
         description,
         inputSchema: tool.inputSchema as never,
-        outputSchema: tool.outputSchema as never,
+        ...(outputSchema ? { outputSchema: outputSchema as never } : {}),
       }, callback as never);
     }
     return server;
