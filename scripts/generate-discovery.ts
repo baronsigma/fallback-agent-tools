@@ -53,6 +53,7 @@ const listings = {
   smithery: { name: 'Fallback', description: productMetadata.fullDescription, transportStatus: 'active', mcpUrl: `${baseUrl}/mcp`, paymentMode: config.paymentMode, tools: distribution.tools },
   glama: { name: productMetadata.productName, description: productMetadata.fullDescription, transportStatus: 'active', mcpUrl: `${baseUrl}/mcp`, paymentMode: config.paymentMode, tools: distribution.tools },
 };
+const glama = { $schema: 'https://glama.ai/mcp/schemas/server.json', maintainers: ['baronsigma'] };
 const yaml = [
   `product: ${JSON.stringify(distribution.product)}`,
   `version: ${distribution.version}`,
@@ -86,6 +87,7 @@ const outputs: Record<string, unknown> = {
   'distribution/apify/metadata.json': apify,
   'distribution/smithery/metadata.json': listings.smithery,
   'distribution/glama/metadata.json': listings.glama,
+  'glama.json': glama,
 };
 const skillText = await readFile(resolve('skill.md'), 'utf8');
 outputs['src/generated/skill.md'] = skillText;
