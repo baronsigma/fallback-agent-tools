@@ -1,9 +1,9 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.baronsigma/fallback-agent-tools",
-  "description": "Small pay-per-call recovery utilities for autonomous agents.",
+  "description": "Tiny paid recovery and decision utilities for autonomous agents.",
   "title": "Fallback",
-  "websiteUrl": "https://fallback.test",
+  "websiteUrl": "https://fallback.factrail.online",
   "repository": {
     "url": "https://github.com/baronsigma/fallback-agent-tools",
     "source": "github"
@@ -12,15 +12,17 @@
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://fallback.test/mcp"
+      "url": "https://fallback.factrail.online/mcp"
     }
   ],
   "_meta": {
     "io.modelcontextprotocol.registry/publisher-provided": {
       "pricingModel": "x402-pay-per-call",
-      "paymentActive": false,
-      "paymentMode": "disabled",
-      "catalogUrl": "https://fallback.test/catalog.json"
+      "paymentActive": true,
+      "paymentMode": "production",
+      "paymentNetwork": "eip155:8453",
+      "paymentNote": "production mode (eip155:8453, Base mainnet, USDC)",
+      "catalogUrl": "https://fallback.factrail.online/catalog.json"
     }
   }
 }

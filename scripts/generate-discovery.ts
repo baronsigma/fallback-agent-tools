@@ -12,6 +12,15 @@ import { dirname } from 'node:path';
 const generatorEnv: NodeJS.ProcessEnv = { ...process.env };
 if (!generatorEnv['PUBLIC_BASE_URL'] && generatorEnv['NODE_ENV'] !== 'production') generatorEnv['PUBLIC_BASE_URL'] = 'https://fallback.test';
 if (!generatorEnv['NODE_ENV']) generatorEnv['NODE_ENV'] = 'test';
+// Public release metadata needs the target network/mode, not deployment secrets.
+// Use a non-secret placeholder receiver only when release generation is run without
+// the protected production environment; never deploy this generated config.
+if (generatorEnv['PAYMENT_MODE'] === 'production' && !generatorEnv['X402_PAY_TO']) {
+  generatorEnv['X402_PAY_TO'] = '0x1111111111111111111111111111111111111111';
+}
+if (generatorEnv['PAYMENT_MODE'] === 'production' && !generatorEnv['X402_FACILITATOR_URL']) {
+  generatorEnv['X402_FACILITATOR_URL'] = 'https://facilitator.openx402.ai';
+}
 const config = loadConfig(generatorEnv);
 const baseUrl = config.publicBaseUrl;
 validateRegistry();
@@ -31,7 +40,7 @@ const distribution = {
 const serverJson = {
   $schema: 'https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json',
   name: 'io.github.baronsigma/fallback-agent-tools',
-  description: productMetadata.shortDescription,
+  description: 'Tiny paid recovery and decision utilities for autonomous agents.',
   title: productMetadata.productName,
   websiteUrl: baseUrl,
   repository: { url: productMetadata.repositoryUrl, source: 'github' },
@@ -41,7 +50,7 @@ const serverJson = {
 };
 const apify = { actorId: `${productMetadata.productId}/agent-tools`, title: productMetadata.productName, description: productMetadata.fullDescription, pricing: 'Pay per event; per-tool USD prices are in distribution/canonical.yaml.', tools: distribution.tools };
 const listings = {
-  smithery: { name: 'fallback-agent-tools', description: productMetadata.fullDescription, transportStatus: 'active', mcpUrl: `${baseUrl}/mcp`, paymentMode: config.paymentMode, tools: distribution.tools },
+  smithery: { name: 'Fallback', description: productMetadata.fullDescription, transportStatus: 'active', mcpUrl: `${baseUrl}/mcp`, paymentMode: config.paymentMode, tools: distribution.tools },
   glama: { name: productMetadata.productName, description: productMetadata.fullDescription, transportStatus: 'active', mcpUrl: `${baseUrl}/mcp`, paymentMode: config.paymentMode, tools: distribution.tools },
 };
 const yaml = [

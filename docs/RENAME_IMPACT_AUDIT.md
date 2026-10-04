@@ -1,6 +1,6 @@
-# Product rename impact audit
+# Product rename impact audit (future reference)
 
-Audit baseline: repository commit `7e57a5a`; this document does not rename the product. Keep tool IDs and routes stable during any future rename.
+Decision: **no rename**. The public product name remains Fallback, the repository remains `baronsigma/fallback-agent-tools`, and the public origin remains `https://fallback.factrail.online`. Retain this audit only as a future reference. Audit baseline: repository commit `7e57a5a`.
 
 ## Canonical identity and projections
 
@@ -29,4 +29,4 @@ The literal-reference audit also found product namespace/host references in `LIC
 
 - Keep tool IDs and MCP tool names: `source_route`, `error_route`, `request_repair`, `stop_search`.
 - Keep HTTP routes: `/v1/tools/source_route`, `/v1/tools/error_route`, `/v1/tools/request_repair`, `/v1/tools/stop_search`.
-- Product title, repo/package slug, hostname, telemetry namespace, and marketplace IDs may change independently, with redirects/migrations considered separately.
+- Product title, repository/package slug, hostname, telemetry namespace, and marketplace IDs are intentionally preserved for this launch.

@@ -41,7 +41,7 @@ export const toolRegistry: readonly ToolRecord[] = [
   },
   {
     id: 'error_route', version: '0.1.0-beta.1', publicName: 'error_route',
-    description: 'Diagnose a failed API, HTTP, MCP, or tool request and return a structured, bounded next action. Use it after a request fails instead of repeatedly retrying or spending a large reasoning loop diagnosing common errors. Provide a status, response, or error text; it does not execute requests or verify undocumented fixes.',
+    description: 'Diagnose a failed API, HTTP, MCP, or tool request and return a bounded safe next action. Use it after a request fails when the safe next step is unclear. Provide a status, response, or error text; it does not execute requests or verify undocumented fixes.',
     category: 'recovery', inputSchema: errorRouteInputSchema, outputSchema: errorRouteOutputSchema,
     priceUsd: '0.002', availability: 'available', httpRoute: '/v1/tools/error_route', mcpName: 'error_route',
     examples: [{ title: 'Diagnose a request schema error', input: { goal: 'Retrieve a company profile', request: { method: 'POST', url: 'https://api.example/company' }, response: { status: 400, body: 'current_company_domain is not a valid field' } }, expected: 'schema_mismatch with inspect_schema guidance' }],
@@ -50,7 +50,7 @@ export const toolRegistry: readonly ToolRecord[] = [
   },
   {
     id: 'request_repair', version: '0.1.0-beta.1', publicName: 'request_repair',
-    description: 'Repair a failed API or HTTP request using only available schema and error evidence. Use after error_route identifies a request-shape or input problem. Returns the smallest justified request changes and abstains when evidence is insufficient.',
+    description: 'Repair a failed API or HTTP request using only supplied schema and error evidence. Use after error_route identifies a request-shape or input problem. Returns the smallest justified request changes and abstains when evidence is insufficient.',
     category: 'recovery', inputSchema: requestRepairInputSchema, discoveryInputSchema: getRequestRepairDiscoveryInputSchema, outputSchema: requestRepairOutputSchema,
     priceUsd: '0.005', availability: 'available', httpRoute: '/v1/tools/request_repair', mcpName: 'request_repair',
     examples: [{ title: 'Apply an explicit field rename', input: { goal: 'Retrieve a company profile', request: { method: 'POST', url: 'https://api.example.com/company', headers: { 'content-type': 'application/json' }, body: { company_domain: 'example.com' } }, response: { status: 400, body: 'company_domain is invalid; use current_company_domains' } }, expected: 'rename only the explicitly rejected field and abstain without evidence' }],
@@ -59,7 +59,7 @@ export const toolRegistry: readonly ToolRecord[] = [
   },
   {
     id: 'stop_search', version: '0.1.0-beta.1', publicName: 'stop_search',
-    description: 'Decide whether continuing a bounded search is worth another query or paid retrieval. Use after several search or source checks when you need to decide whether to continue or return a scoped not-found result. It does not prove universal absence and performs no searches itself.',
+    description: 'Decide whether another search or paid retrieval is worth the cost based on the scope already checked. Use after several search or source checks when you need to decide whether to continue or return a scoped not-found result. It does not prove universal absence and performs no searches itself.',
     category: 'search-quality', inputSchema: stopSearchInputSchema, outputSchema: stopSearchOutputSchema,
     priceUsd: '0.003', availability: 'available', httpRoute: '/v1/tools/stop_search', mcpName: 'stop_search',
     examples: [{ title: 'Assess completed primary-source checks', input: { goal: 'Find the official dataset API', risk: 'low', checks: [{ target: 'https://publisher.example', method: 'direct', result: 'not_found', authority: 'primary', coverage: 'high', exhaustive: true }] }, expected: 'stop with a scoped not-found result because the caller reports an exhaustive primary-source check' }],

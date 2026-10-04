@@ -1,16 +1,16 @@
 product: "Fallback"
 version: 0.1.0-beta.1
-description: "Small pay-per-call recovery utilities for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem."
+description: "Fallback gives autonomous agents small, deterministic utilities for the moments where automation gets stuck: finding the right source, diagnosing a failed request, repairing a request from available evidence, and deciding whether another search or paid retrieval is worth the cost."
 transports:
   http: active
   mcp: active
 endpoints:
-  mcp: "https://fallback.test/mcp"
-  catalog: "https://fallback.test/catalog.json"
-  openapi: "https://fallback.test/openapi.json"
-  serverCard: "https://fallback.test/.well-known/mcp/server-card.json"
-  x402: "https://fallback.test/.well-known/x402.json"
-  skill: "https://fallback.test/skill.md"
+  mcp: "https://fallback.factrail.online/mcp"
+  catalog: "https://fallback.factrail.online/catalog.json"
+  openapi: "https://fallback.factrail.online/openapi.json"
+  serverCard: "https://fallback.factrail.online/.well-known/mcp/server-card.json"
+  x402: "https://fallback.factrail.online/.well-known/x402.json"
+  skill: "https://fallback.factrail.online/skill.md"
 tools:
   - id: source_route
     version: 0.1.0-beta.1

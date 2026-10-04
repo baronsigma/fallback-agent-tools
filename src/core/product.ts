@@ -1,8 +1,9 @@
 export const productIdentity = {
   productId: 'fallback',
   productName: 'Fallback',
-  shortDescription: 'Small pay-per-call recovery utilities for autonomous agents.',
-  tagline: "Don't spend a dollar of reasoning on a cent-sized problem.",
+  shortDescription: 'Pay-per-call tools that help AI agents find sources, diagnose failures, repair requests, and decide when to stop searching.',
+  tagline: 'Tiny paid recovery and decision utilities for autonomous agents.',
+  secondaryTagline: "Don't spend a dollar of reasoning on a cent-sized problem.",
   publicBaseUrl: 'https://fallback.factrail.online',
   repositoryUrl: 'https://github.com/baronsigma/fallback-agent-tools',
   paymentNetworks: {
@@ -25,7 +26,7 @@ export function productIdentityFor(publicBaseUrl: string = productIdentity.publi
 
 export const productMetadata = {
   ...productIdentity,
-  fullDescription: `${productIdentity.shortDescription} ${productIdentity.tagline}`,
+  fullDescription: 'Fallback gives autonomous agents small, deterministic utilities for the moments where automation gets stuck: finding the right source, diagnosing a failed request, repairing a request from available evidence, and deciding whether another search or paid retrieval is worth the cost.',
   version: '0.1.0-beta.1',
   license: 'MIT',
   endpoints: {

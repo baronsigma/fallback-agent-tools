@@ -5,18 +5,18 @@
   "x402Version": 2,
   "service": {
     "name": "Fallback",
-    "description": "Small pay-per-call recovery utilities for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem.",
-    "resource": "https://fallback.test"
+    "description": "Fallback gives autonomous agents small, deterministic utilities for the moments where automation gets stuck: finding the right source, diagnosing a failed request, repairing a request from available evidence, and deciding whether another search or paid retrieval is worth the cost.",
+    "resource": "https://fallback.factrail.online"
   },
-  "paymentMode": "disabled",
+  "paymentMode": "production",
   "bazaar": {
     "extension": "bazaar",
-    "active": false
+    "active": true
   },
   "resources": [
     {
       "id": "source_route",
-      "resource": "https://fallback.test/v1/tools/source_route",
+      "resource": "https://fallback.factrail.online/v1/tools/source_route",
       "type": "http",
       "toolName": "source_route",
       "description": "Find likely authoritative or machine-readable sources when you know what information you need but not where to retrieve it. Provide a goal and optional publisher domain or start URL; it returns ranked candidate routes and bounded evidence. Use it before blind searching. Do not use it when you already have the correct source or only need reasoning over supplied context.",
@@ -74,14 +74,14 @@
       "priceUsd": "0.02",
       "availability": "available",
       "enabled": true,
-      "active": false
+      "active": true
     },
     {
       "id": "error_route",
-      "resource": "https://fallback.test/v1/tools/error_route",
+      "resource": "https://fallback.factrail.online/v1/tools/error_route",
       "type": "http",
       "toolName": "error_route",
-      "description": "Diagnose a failed API, HTTP, MCP, or tool request and return a structured, bounded next action. Use it after a request fails instead of repeatedly retrying or spending a large reasoning loop diagnosing common errors. Provide a status, response, or error text; it does not execute requests or verify undocumented fixes.",
+      "description": "Diagnose a failed API, HTTP, MCP, or tool request and return a bounded safe next action. Use it after a request fails when the safe next step is unclear. Provide a status, response, or error text; it does not execute requests or verify undocumented fixes.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -158,14 +158,14 @@
       "priceUsd": "0.002",
       "availability": "available",
       "enabled": true,
-      "active": false
+      "active": true
     },
     {
       "id": "request_repair",
-      "resource": "https://fallback.test/v1/tools/request_repair",
+      "resource": "https://fallback.factrail.online/v1/tools/request_repair",
       "type": "http",
       "toolName": "request_repair",
-      "description": "Repair a failed API or HTTP request using only available schema and error evidence. Use after error_route identifies a request-shape or input problem. Returns the smallest justified request changes and abstains when evidence is insufficient.",
+      "description": "Repair a failed API or HTTP request using only supplied schema and error evidence. Use after error_route identifies a request-shape or input problem. Returns the smallest justified request changes and abstains when evidence is insufficient.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -429,14 +429,14 @@
       "priceUsd": "0.005",
       "availability": "available",
       "enabled": true,
-      "active": false
+      "active": true
     },
     {
       "id": "stop_search",
-      "resource": "https://fallback.test/v1/tools/stop_search",
+      "resource": "https://fallback.factrail.online/v1/tools/stop_search",
       "type": "http",
       "toolName": "stop_search",
-      "description": "Decide whether continuing a bounded search is worth another query or paid retrieval. Use after several search or source checks when you need to decide whether to continue or return a scoped not-found result. It does not prove universal absence and performs no searches itself.",
+      "description": "Decide whether another search or paid retrieval is worth the cost based on the scope already checked. Use after several search or source checks when you need to decide whether to continue or return a scoped not-found result. It does not prove universal absence and performs no searches itself.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -601,7 +601,7 @@
       "priceUsd": "0.003",
       "availability": "available",
       "enabled": true,
-      "active": false
+      "active": true
     }
   ]
 }

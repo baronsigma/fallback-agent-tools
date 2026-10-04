@@ -1,7 +1,7 @@
 {
   "actorId": "fallback/agent-tools",
   "title": "Fallback",
-  "description": "Small pay-per-call recovery utilities for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem.",
+  "description": "Fallback gives autonomous agents small, deterministic utilities for the moments where automation gets stuck: finding the right source, diagnosing a failed request, repairing a request from available evidence, and deciding whether another search or paid retrieval is worth the cost.",
   "pricing": "Pay per event; per-tool USD prices are in distribution/canonical.yaml.",
   "tools": [
     {

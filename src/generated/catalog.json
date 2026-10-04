@@ -1,25 +1,26 @@
 {
   "productId": "fallback",
   "name": "Fallback",
-  "description": "Small pay-per-call recovery utilities for autonomous agents.",
-  "tagline": "Don't spend a dollar of reasoning on a cent-sized problem.",
+  "description": "Pay-per-call tools that help AI agents find sources, diagnose failures, repair requests, and decide when to stop searching.",
+  "tagline": "Tiny paid recovery and decision utilities for autonomous agents.",
   "version": "0.1.0-beta.1",
   "transports": {
     "http": "active",
     "mcp": "active",
-    "payment": "disabled"
+    "payment": "active"
   },
   "payment": {
-    "mode": "disabled",
-    "x402": false
+    "mode": "production",
+    "x402": true,
+    "network": "eip155:8453"
   },
   "endpoints": {
-    "mcp": "https://fallback.test/mcp",
-    "catalog": "https://fallback.test/catalog.json",
-    "openapi": "https://fallback.test/openapi.json",
-    "serverCard": "https://fallback.test/.well-known/mcp/server-card.json",
-    "x402": "https://fallback.test/.well-known/x402.json",
-    "skill": "https://fallback.test/skill.md"
+    "mcp": "https://fallback.factrail.online/mcp",
+    "catalog": "https://fallback.factrail.online/catalog.json",
+    "openapi": "https://fallback.factrail.online/openapi.json",
+    "serverCard": "https://fallback.factrail.online/.well-known/mcp/server-card.json",
+    "x402": "https://fallback.factrail.online/.well-known/x402.json",
+    "skill": "https://fallback.factrail.online/skill.md"
   },
   "tools": [
     {
@@ -239,7 +240,7 @@
         "resourceType": "http",
         "enabled": true,
         "discoveryExtension": "bazaar",
-        "active": false
+        "active": true
       },
       "distribution": {
         "apifyActorId": "fallback/source-route",
@@ -251,7 +252,7 @@
       "id": "error_route",
       "version": "0.1.0-beta.1",
       "name": "error_route",
-      "description": "Diagnose a failed API, HTTP, MCP, or tool request and return a structured, bounded next action. Use it after a request fails instead of repeatedly retrying or spending a large reasoning loop diagnosing common errors. Provide a status, response, or error text; it does not execute requests or verify undocumented fixes.",
+      "description": "Diagnose a failed API, HTTP, MCP, or tool request and return a bounded safe next action. Use it after a request fails when the safe next step is unclear. Provide a status, response, or error text; it does not execute requests or verify undocumented fixes.",
       "category": "recovery",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -502,7 +503,7 @@
         "resourceType": "http",
         "enabled": true,
         "discoveryExtension": "bazaar",
-        "active": false
+        "active": true
       },
       "distribution": {
         "apifyActorId": "fallback/error-route",
@@ -514,7 +515,7 @@
       "id": "request_repair",
       "version": "0.1.0-beta.1",
       "name": "request_repair",
-      "description": "Repair a failed API or HTTP request using only available schema and error evidence. Use after error_route identifies a request-shape or input problem. Returns the smallest justified request changes and abstains when evidence is insufficient.",
+      "description": "Repair a failed API or HTTP request using only supplied schema and error evidence. Use after error_route identifies a request-shape or input problem. Returns the smallest justified request changes and abstains when evidence is insufficient.",
       "category": "recovery",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -963,7 +964,7 @@
         "resourceType": "http",
         "enabled": true,
         "discoveryExtension": "bazaar",
-        "active": false
+        "active": true
       },
       "distribution": {
         "apifyActorId": "fallback/request-repair",
@@ -975,7 +976,7 @@
       "id": "stop_search",
       "version": "0.1.0-beta.1",
       "name": "stop_search",
-      "description": "Decide whether continuing a bounded search is worth another query or paid retrieval. Use after several search or source checks when you need to decide whether to continue or return a scoped not-found result. It does not prove universal absence and performs no searches itself.",
+      "description": "Decide whether another search or paid retrieval is worth the cost based on the scope already checked. Use after several search or source checks when you need to decide whether to continue or return a scoped not-found result. It does not prove universal absence and performs no searches itself.",
       "category": "search-quality",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1276,7 +1277,7 @@
         "resourceType": "http",
         "enabled": true,
         "discoveryExtension": "bazaar",
-        "active": false
+        "active": true
       },
       "distribution": {
         "apifyActorId": "fallback/stop-search",

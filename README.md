@@ -11,11 +11,30 @@
        find the route forward
 ```
 
-**Don't spend a dollar of reasoning on a cent-sized problem.**
+# Fallback
 
-Fallback is a small paid recovery and decision layer for autonomous agents. When an agent gets stuck, uncertain, or receives a bad tool/API response, it offers a cheap, bounded next move without requiring a large reasoning loop.
+Tiny paid recovery and decision utilities for autonomous agents.
 
-Fallback provides four small paid utilities for bounded recovery decisions:
+When an agent gets stuck, Fallback helps it find the next safe move without wasting a large reasoning loop.
+
+source_route     Where should I look? ($0.02)\
+error_route      Why did this fail? ($0.002)\
+request_repair   Can I safely fix the request? ($0.005)\
+stop_search      Is another search worth it? ($0.003)
+
+## Use Fallback
+
+Pay-per-call tools that help AI agents find sources, diagnose failures, repair requests, and decide when to stop searching. Fallback gives autonomous agents small, deterministic utilities for the moments where automation gets stuck: finding the right source, diagnosing a failed request, repairing a request from available evidence, and deciding whether another search or paid retrieval is worth the cost.
+
+## Hosted service
+
+MCP endpoint: https://fallback.factrail.online/mcp\
+HTTP API base: https://fallback.factrail.online\
+Payment: x402 V2 pay-per-call. Check each live challenge for network, asset, amount, and recipient.\
+Agent skill: [skill.md](https://fallback.factrail.online/skill.md)\
+OpenAPI: [openapi.json](https://fallback.factrail.online/openapi.json)
+
+## Tools
 
 - `source_route` ($0.02): **Where should I look?** Find likely authoritative or machine-readable sources.
 - `error_route` ($0.002): **Why did my call fail?** Classify a failed request and recommend a bounded next action.
@@ -23,10 +42,6 @@ Fallback provides four small paid utilities for bounded recovery decisions:
 - `stop_search` ($0.003): **Is further searching worth it?** Decide whether more bounded search effort is justified by the evidence and remaining cost.
 
 These tools do not replace agent reasoning, and `stop_search` never proves universal absence.
-
-## Hosted beta
-
-The public beta is available at [fallback.factrail.online](https://fallback.factrail.online). Its Streamable HTTP MCP endpoint is [fallback.factrail.online/mcp](https://fallback.factrail.online/mcp), and its health check is [fallback.factrail.online/healthz](https://fallback.factrail.online/healthz). The [agent skill](https://fallback.factrail.online/skill.md) explains when to use each tool. **Payments run on the Base Sepolia test network only** (x402 TEST mode, `eip155:84532`, testnet USDC); this is not real billing, and mainnet is not enabled. Test-mode HTTP and paid MCP settlements have been validated. Use testnet funds only.
 
 ## When an agent should use this
 
@@ -42,7 +57,7 @@ How to read the result:
 
 Limits per call: at most 8 direct HTTP requests, 12 s total, 1 MiB per response, and at most 1 external search request. No LLM inference. The hosted beta currently runs deterministic discovery only (no search provider configured).
 
-Access: hosted MCP `https://fallback.factrail.online/mcp` (Streamable HTTP) or the documented HTTP tool routes, x402 pay-per-call, **currently Base Sepolia testnet only** (`eip155:84532`, testnet USDC; no account or API key). To try it without any payment, self-host with `PAYMENT_MODE=disabled` (see Local development). Machine-readable summary: [`llms.txt`](llms.txt) (also served at `/llms.txt`). More detail: [Using Fallback with agents](docs/USING_WITH_AGENTS.md).
+Access: hosted MCP `https://fallback.factrail.online/mcp` (Streamable HTTP) or the HTTP tool routes, x402 pay-per-call (each challenge declares its payment network and amount; no account or API key). To try it without payment, self-host with `PAYMENT_MODE=disabled` (see Local development). Machine-readable summary: [`llms.txt`](llms.txt). More detail: [Using Fallback with agents](docs/USING_WITH_AGENTS.md).
 
 Production promotion is not enabled. See the [Base mainnet launch checklist](docs/PRODUCTION_LAUNCH_CHECKLIST.md), [product rename impact audit](docs/RENAME_IMPACT_AUDIT.md), [discovery/distribution readiness audit](docs/LAUNCH_DISTRIBUTION_AUDIT.md), and [telemetry and 30-day KPI definitions](docs/TELEMETRY_AND_30_DAY_METRICS.md).
 
@@ -77,6 +92,10 @@ npm run benchmark:error-route
 npm run verify:catalog
 npm run release:check
 ```
+
+## 30-second start
+
+Connect an x402-compatible agent to `https://fallback.factrail.online/mcp`, call the matching tool after a concrete failure or search decision, and approve only the network, token, recipient, and amount shown by its payment challenge. HTTP clients can use `POST /v1/tools/{tool_id}` on the hosted origin. See [skill.md](skill.md) for examples and schemas.
 
 ## Architecture
 

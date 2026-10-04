@@ -1,9 +1,9 @@
 {
-  "name": "fallback-agent-tools",
-  "description": "Small pay-per-call recovery utilities for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem.",
+  "name": "Fallback",
+  "description": "Fallback gives autonomous agents small, deterministic utilities for the moments where automation gets stuck: finding the right source, diagnosing a failed request, repairing a request from available evidence, and deciding whether another search or paid retrieval is worth the cost.",
   "transportStatus": "active",
-  "mcpUrl": "https://fallback.test/mcp",
-  "paymentMode": "disabled",
+  "mcpUrl": "https://fallback.factrail.online/mcp",
+  "paymentMode": "production",
   "tools": [
     {
       "id": "source_route",

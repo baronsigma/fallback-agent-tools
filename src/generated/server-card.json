@@ -7,11 +7,11 @@
     "title": "Fallback",
     "version": "0.1.0-beta.1"
   },
-  "description": "Small pay-per-call recovery utilities for autonomous agents. Don't spend a dollar of reasoning on a cent-sized problem.",
+  "description": "Fallback gives autonomous agents small, deterministic utilities for the moments where automation gets stuck: finding the right source, diagnosing a failed request, repairing a request from available evidence, and deciding whether another search or paid retrieval is worth the cost.",
   "documentationUrl": "https://github.com/baronsigma/fallback-agent-tools#readme",
   "transport": {
     "type": "streamable-http",
-    "endpoint": "https://fallback.test/mcp"
+    "endpoint": "https://fallback.factrail.online/mcp"
   },
   "capabilities": {
     "tools": {

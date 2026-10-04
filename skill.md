@@ -1,6 +1,17 @@
-# Fallback agent skill
+# Fallback
 
-Use Fallback as a small recovery and decision layer. It returns bounded source suggestions or diagnoses a failed request; it does not execute the caller's requests.
+Tiny paid recovery and decision utilities for autonomous agents.
+
+Pay-per-call tools that help AI agents find sources, diagnose failures, repair requests, and decide when to stop searching.
+
+When an agent gets stuck, Fallback helps it find the next safe move without wasting a large reasoning loop.
+
+Use Fallback for small, deterministic recovery and decision tasks. It returns bounded source suggestions, diagnoses failures, repairs requests from supplied evidence, and helps decide when to stop searching; it does not execute the caller's requests.
+
+source_route     Where should I look?  ($0.02)
+error_route      Why did this fail?  ($0.002)
+request_repair   Can I safely fix the request?  ($0.005)
+stop_search      Is another search worth it?  ($0.003)
 
 ## Service
 
