@@ -32,7 +32,9 @@ MCP endpoint: https://fallback.factrail.online/mcp\
 HTTP API base: https://fallback.factrail.online\
 Payment: x402 V2 pay-per-call. Check each live challenge for network, asset, amount, and recipient.\
 Agent skill: [skill.md](https://fallback.factrail.online/skill.md)\
-OpenAPI: [openapi.json](https://fallback.factrail.online/openapi.json)
+OpenAPI: [openapi.json](https://fallback.factrail.online/openapi.json)\
+Network: Base mainnet, canonical USDC\
+Release: [v0.1.0-beta.1](https://github.com/baronsigma/fallback-agent-tools/releases/tag/v0.1.0-beta.1)
 
 ## Tools
 
@@ -59,7 +61,7 @@ Limits per call: at most 8 direct HTTP requests, 12 s total, 1 MiB per response,
 
 Access: hosted MCP `https://fallback.factrail.online/mcp` (Streamable HTTP) or the HTTP tool routes, x402 pay-per-call (each challenge declares its payment network and amount; no account or API key). To try it without payment, self-host with `PAYMENT_MODE=disabled` (see Local development). Machine-readable summary: [`llms.txt`](llms.txt). More detail: [Using Fallback with agents](docs/USING_WITH_AGENTS.md).
 
-Production promotion is not enabled. See the [Base mainnet launch checklist](docs/PRODUCTION_LAUNCH_CHECKLIST.md), [product rename impact audit](docs/RENAME_IMPACT_AUDIT.md), [discovery/distribution readiness audit](docs/LAUNCH_DISTRIBUTION_AUDIT.md), and [telemetry and 30-day KPI definitions](docs/TELEMETRY_AND_30_DAY_METRICS.md).
+Fallback is publicly launched. See the [current launch and distribution status](docs/LAUNCH_STATUS.md), [product rename impact audit](docs/RENAME_IMPACT_AUDIT.md), [discovery/distribution readiness audit](docs/LAUNCH_DISTRIBUTION_AUDIT.md), and [telemetry and 30-day KPI definitions](docs/TELEMETRY_AND_30_DAY_METRICS.md).
 
 ## When to use `error_route`
 
