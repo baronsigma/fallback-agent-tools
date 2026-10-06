@@ -10,6 +10,24 @@ export const toolStatuses = ['planned', 'available', 'disabled'] as const;
 export type ToolStatus = typeof toolStatuses[number];
 export type ToolCategory = 'source-discovery' | 'search-quality' | 'recovery';
 
+/** Hints advertised on MCP tools/list. These tools return advice and do not mutate caller or server state. */
+export type McpToolAnnotations = {
+  readOnlyHint: boolean;
+  destructiveHint: boolean;
+  idempotentHint: boolean;
+  openWorldHint: boolean;
+};
+
+const closedWorldAdvisory = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+} as const satisfies McpToolAnnotations;
+
+/** source_route may read public HTTP resources and at most one configured search provider. */
+const openWorldAdvisory = { ...closedWorldAdvisory, openWorldHint: true } as const satisfies McpToolAnnotations;
+
 export type ToolRecord = {
   id: string;
   version: string;
@@ -23,6 +41,7 @@ export type ToolRecord = {
   availability: ToolStatus;
   httpRoute: string;
   mcpName: string;
+  mcpAnnotations: McpToolAnnotations;
   examples: Array<{ title: string; input: Record<string, unknown>; expected?: string }>;
   latencyTargetMs: number;
   x402: { resourceType: 'http' | 'mcp'; enabled: boolean; discoveryExtension: 'bazaar' };
@@ -34,7 +53,7 @@ export const toolRegistry: readonly ToolRecord[] = [
     id: 'source_route', version: '0.1.0-beta.1', publicName: 'source_route',
     description: sourceRouteDescription,
     category: 'source-discovery', inputSchema: sourceRouteInputSchema, outputSchema: sourceRouteOutputSchema,
-    priceUsd: '0.02', availability: 'available', httpRoute: '/v1/tools/source_route', mcpName: 'source_route',
+    priceUsd: '0.02', availability: 'available', httpRoute: '/v1/tools/source_route', mcpName: 'source_route', mcpAnnotations: openWorldAdvisory,
     examples: [{ title: 'Find a machine-readable route', input: { goal: 'Download the latest population dataset', domain: 'statistics.example' }, expected: 'routes_found or no_suitable_route_found within checked scope' }],
     latencyTargetMs: 12000, x402: { resourceType: 'http', enabled: true, discoveryExtension: 'bazaar' },
     distribution: { apifyActorId: 'fallback/source-route', smitheryServerId: 'source_route', glamaServerId: 'source_route' },
@@ -43,7 +62,7 @@ export const toolRegistry: readonly ToolRecord[] = [
     id: 'error_route', version: '0.1.0-beta.1', publicName: 'error_route',
     description: 'Diagnose a failed API, HTTP, MCP, or tool request and return a bounded safe next action. Use it after a request fails when the safe next step is unclear. Provide a status, response, or error text; it does not execute requests or verify undocumented fixes.',
     category: 'recovery', inputSchema: errorRouteInputSchema, outputSchema: errorRouteOutputSchema,
-    priceUsd: '0.002', availability: 'available', httpRoute: '/v1/tools/error_route', mcpName: 'error_route',
+    priceUsd: '0.002', availability: 'available', httpRoute: '/v1/tools/error_route', mcpName: 'error_route', mcpAnnotations: closedWorldAdvisory,
     examples: [{ title: 'Diagnose a request schema error', input: { goal: 'Retrieve a company profile', request: { method: 'POST', url: 'https://api.example/company' }, response: { status: 400, body: 'current_company_domain is not a valid field' } }, expected: 'schema_mismatch with inspect_schema guidance' }],
     latencyTargetMs: 50, x402: { resourceType: 'http', enabled: true, discoveryExtension: 'bazaar' },
     distribution: { apifyActorId: 'fallback/error-route', smitheryServerId: 'error_route', glamaServerId: 'error_route' },
@@ -52,7 +71,7 @@ export const toolRegistry: readonly ToolRecord[] = [
     id: 'request_repair', version: '0.1.0-beta.1', publicName: 'request_repair',
     description: 'Repair a failed API or HTTP request using only supplied schema and error evidence. Use after error_route identifies a request-shape or input problem. Returns the smallest justified request changes and abstains when evidence is insufficient.',
     category: 'recovery', inputSchema: requestRepairInputSchema, discoveryInputSchema: getRequestRepairDiscoveryInputSchema, outputSchema: requestRepairOutputSchema,
-    priceUsd: '0.005', availability: 'available', httpRoute: '/v1/tools/request_repair', mcpName: 'request_repair',
+    priceUsd: '0.005', availability: 'available', httpRoute: '/v1/tools/request_repair', mcpName: 'request_repair', mcpAnnotations: closedWorldAdvisory,
     examples: [{ title: 'Apply an explicit field rename', input: { goal: 'Retrieve a company profile', request: { method: 'POST', url: 'https://api.example.com/company', headers: { 'content-type': 'application/json' }, body: { company_domain: 'example.com' } }, response: { status: 400, body: 'company_domain is invalid; use current_company_domains' } }, expected: 'rename only the explicitly rejected field and abstain without evidence' }],
     latencyTargetMs: 50, x402: { resourceType: 'http', enabled: true, discoveryExtension: 'bazaar' },
     distribution: { apifyActorId: 'fallback/request-repair', smitheryServerId: 'request_repair', glamaServerId: 'request_repair' },
@@ -61,7 +80,7 @@ export const toolRegistry: readonly ToolRecord[] = [
     id: 'stop_search', version: '0.1.0-beta.1', publicName: 'stop_search',
     description: 'Decide whether another search or paid retrieval is worth the cost based on the scope already checked. Use after several search or source checks when you need to decide whether to continue or return a scoped not-found result. It does not prove universal absence and performs no searches itself.',
     category: 'search-quality', inputSchema: stopSearchInputSchema, outputSchema: stopSearchOutputSchema,
-    priceUsd: '0.003', availability: 'available', httpRoute: '/v1/tools/stop_search', mcpName: 'stop_search',
+    priceUsd: '0.003', availability: 'available', httpRoute: '/v1/tools/stop_search', mcpName: 'stop_search', mcpAnnotations: closedWorldAdvisory,
     examples: [{ title: 'Assess completed primary-source checks', input: { goal: 'Find the official dataset API', risk: 'low', checks: [{ target: 'https://publisher.example', method: 'direct', result: 'not_found', authority: 'primary', coverage: 'high', exhaustive: true }] }, expected: 'stop with a scoped not-found result because the caller reports an exhaustive primary-source check' }],
     latencyTargetMs: 25, x402: { resourceType: 'http', enabled: true, discoveryExtension: 'bazaar' },
     distribution: { apifyActorId: 'fallback/stop-search', smitheryServerId: 'stop_search', glamaServerId: 'stop_search' },

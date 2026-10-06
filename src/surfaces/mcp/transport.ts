@@ -60,6 +60,7 @@ export function createMcpHandler(config: AppConfig, registry: readonly ToolRecor
         description,
         inputSchema: tool.inputSchema as never,
         ...(outputSchema ? { outputSchema: outputSchema as never } : {}),
+        annotations: tool.mcpAnnotations,
       }, callback as never);
     }
     return server;

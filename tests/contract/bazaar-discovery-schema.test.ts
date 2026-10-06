@@ -68,7 +68,10 @@ describe('Bazaar discovery schemas', () => {
     const repairResource = projected.find((resource) => resource.id === 'request_repair');
     expect(repairResource).toBeDefined();
     expect(hasLocalRefs(repairResource?.inputSchema)).toBe(false);
-    expect((repairResource?.inputSchema['properties'] as Record<string, unknown>)['request']).toBeDefined();
+    const repairProperties = repairResource?.inputSchema['properties'] as Record<string, Record<string, unknown>>;
+    expect(repairProperties['request']).toBeDefined();
+    expect(typeof repairProperties['schema']?.['description']).toBe('string');
+    expect(repairProperties['schema']).not.toHaveProperty('$ref');
     expect(tool.inputSchema.toJSONSchema({ io: 'input' })).toMatchObject({ $defs: expect.any(Object) });
     const openapi = makeOpenApi('https://fallback.test', true) as { paths: Record<string, { post: { requestBody: { content: { 'application/json': { schema: unknown } } } } }> };
     expect(openapi.paths['/v1/tools/request_repair']?.post.requestBody.content['application/json'].schema)

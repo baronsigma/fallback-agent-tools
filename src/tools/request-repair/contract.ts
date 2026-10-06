@@ -25,60 +25,61 @@ function boundedJson(value: unknown, maxBytes: number, maxDepth: number, maxNode
 const headersSchema = z.record(z.string().max(128), z.string().max(4096)).superRefine((headers, context) => {
   if (Object.keys(headers).length > 40) context.addIssue({ code: 'custom', message: 'At most 40 request or response headers are accepted.' });
   if (Object.entries(headers).reduce((total, [name, value]) => total + name.length + value.length, 0) > 16000) context.addIssue({ code: 'custom', message: 'Header data exceeds the size limit.' });
-});
+}).describe('Header map. At most 40 headers; names up to 128 characters and values up to 4096.');
 
 const requestPartSchema = z.object({
-  method: z.string().trim().min(1).max(16).optional(),
-  url: z.string().max(2048).optional(),
-  headers: headersSchema.optional(),
-  query: z.record(z.string().max(128), jsonValueSchema).optional(),
+  method: z.string().trim().min(1).max(16).optional().describe('HTTP method, from 1 to 16 characters.'),
+  url: z.string().max(2048).optional().describe('Request URL, up to 2048 characters. The tool does not call it or invent a replacement.'),
+  headers: headersSchema.optional().describe('Request headers. Secret-like values are redacted in the result and are not required.'),
+  query: z.record(z.string().max(128), jsonValueSchema).optional().describe('Query parameters as a JSON object. Property names are at most 128 characters.'),
   body: jsonValueSchema.optional().superRefine((value, context) => {
     if (value !== undefined && !boundedJson(value, 16000, 12, 1200)) context.addIssue({ code: 'custom', message: 'Request body exceeds size or nesting limits.' });
-  }),
-}).strict();
+  }).describe('JSON-compatible request body within the size and nesting limits. It is not sent.'),
+}).strict().describe('Failed request to repair. Required. This tool does not send or retry it.');
 
 const responseSchema = z.object({
-  status: z.number().int().min(100).max(599).optional(),
-  headers: headersSchema.optional(),
+  status: z.number().int().min(100).max(599).optional().describe('HTTP status code of the failure, from 100 to 599.'),
+  headers: headersSchema.optional().describe('Response headers used as evidence, such as Allow or Retry-After.'),
   body: jsonValueSchema.optional().superRefine((value, context) => {
     if (value !== undefined && !boundedJson(value, 12000, 10, 800)) context.addIssue({ code: 'custom', message: 'Response body exceeds size or nesting limits.' });
-  }),
-}).strict().optional();
+  }).describe('JSON-compatible response body used as evidence. It is not copied into the repair result.'),
+}).strict().optional().describe('Optional failure response. Provide this, error, or error_route.');
 
 const schemaEvidence = jsonValueSchema.optional().superRefine((value, context) => {
   if (value !== undefined && (!boundedJson(value, 20000, 16, 1800) || !value || typeof value !== 'object' || Array.isArray(value))) {
     context.addIssue({ code: 'custom', message: 'Schema must be a bounded JSON object.' });
   }
-});
+}).describe('Optional JSON Schema or OpenAPI fragment for the request. Must be a bounded JSON object. The tool does not fetch a schema.');
 
 const errorRouteHintSchema = z.object({
-  classification: errorClassificationSchema,
-  retry: retryGuidanceSchema.optional(),
+  classification: errorClassificationSchema.describe('Classification from a previous error_route call. Required when error_route is set. Failures that are not request-shape problems cause abstention.'),
+  retry: retryGuidanceSchema.optional().describe('Optional retry label from a previous error_route call. Repair decisions use classification together with the request, response, schema, and error text.'),
 }).passthrough().optional().superRefine((value, context) => {
   if (value !== undefined && !boundedJson(value, 6000, 10, 600)) context.addIssue({ code: 'custom', message: 'error_route evidence exceeds the size limit.' });
-});
+}).describe('Optional previous error_route result. classification is required on this object; other fields may be included within the size limit.');
 
 export const requestRepairInputSchema = z.object({
-  goal: z.string().trim().min(1).max(500).optional(),
+  goal: z.string().trim().min(1).max(500).optional().describe('What the request was trying to accomplish, from 1 to 500 characters.'),
   request: requestPartSchema,
   response: responseSchema,
-  error: z.string().max(4000).optional(),
+  error: z.string().max(4000).optional().describe('Error text, up to 4000 characters. Provide this, a response, or error_route.'),
   error_route: errorRouteHintSchema,
   schema: schemaEvidence,
   constraints: z.object({
-    allow_method_change: z.boolean().default(false),
-    allow_url_change: z.boolean().default(false),
-  }).strict().default({ allow_method_change: false, allow_url_change: false }),
+    allow_method_change: z.boolean().default(false).describe('When true, a 405 response whose Allow header names exactly one method may replace the request method. Defaults to false.'),
+    allow_url_change: z.boolean().default(false).describe('When true, the caller allows a URL change. Defaults to false. Repairs do not invent or rewrite URLs.'),
+  }).strict().default({ allow_method_change: false, allow_url_change: false }).describe('Caller limits on method and URL changes. Both flags default to false.'),
 }).strict().superRefine((input, context) => {
   if (!input.response && !input.error && !input.error_route) {
     context.addIssue({ code: 'custom', message: 'Provide a request and relevant failure evidence.' });
   }
-});
+}).describe('Failed request plus schema or error evidence. Returns the smallest justified edit, or abstains. Nothing is sent.');
 
 /**
  * Bazaar's embedded schema validator does not resolve recursive local refs.
  * Keep the runtime Zod schema untouched and project only its discovery form:
  * recursive arbitrary JSON nodes expand once, then use `{}` for nested values.
+ * Sibling keywords on a ref, including property descriptions, stay on the expanded node.
  */
 export function getRequestRepairDiscoveryInputSchema(): Record<string, unknown> {
   const root = requestRepairInputSchema.toJSONSchema({ io: 'input' }) as Record<string, unknown>;
@@ -89,12 +90,18 @@ export function getRequestRepairDiscoveryInputSchema(): Record<string, unknown> 
     const object = value as Record<string, unknown>;
     const ref = object['$ref'];
     if (typeof ref === 'string' && ref.startsWith('#/$defs/')) {
-      if (activeRefs.has(ref)) return {};
+      const siblings = Object.fromEntries(Object.entries(object).filter(([key]) => key !== '$ref' && key !== '$defs'));
+      const applySiblings = (expanded: unknown): unknown => {
+        if (!expanded || typeof expanded !== 'object' || Array.isArray(expanded)) return Object.keys(siblings).length > 0 ? siblings : expanded;
+        return { ...expanded, ...siblings };
+      };
+      if (activeRefs.has(ref)) return Object.keys(siblings).length > 0 ? siblings : {};
       const definition = root['$defs'];
       const target = typeof definition === 'object' && definition !== null
         ? (definition as Record<string, unknown>)[decodeURIComponent(ref.slice('#/$defs/'.length).replaceAll('~1', '/').replaceAll('~0', '~'))]
         : undefined;
-      return target === undefined ? {} : expand(target, new Set([...activeRefs, ref]), depth + 1);
+      if (target === undefined) return Object.keys(siblings).length > 0 ? siblings : {};
+      return applySiblings(expand(target, new Set([...activeRefs, ref]), depth + 1));
     }
     return Object.fromEntries(Object.entries(object)
       .filter(([key]) => key !== '$defs')

@@ -68,8 +68,14 @@ describe('public HTTP scaffold', () => {
       expect((await stopSearch.json()).result.decision).toBe('insufficient_evidence');
       const list = await fetch(`${base}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }) });
       expect(list.status).toBe(200);
-      const toolsList = await parseMcpResponse(list) as unknown as { result: { tools: Array<{ name: string; inputSchema: unknown; outputSchema?: unknown }> } };
+      const toolsList = await parseMcpResponse(list) as unknown as { result: { tools: Array<{ name: string; title?: string; inputSchema: unknown; outputSchema?: unknown; annotations?: Record<string, unknown> }> } };
       expect(toolsList.result.tools.map((tool) => tool.name)).toEqual(['source_route', 'error_route', 'request_repair', 'stop_search']);
+      for (const listed of toolsList.result.tools) {
+        const tool = toolRegistry.find((entry) => entry.mcpName === listed.name);
+        expect(tool, listed.name).toBeDefined();
+        expect(listed.title).toBe(tool?.publicName);
+        expect(listed.annotations).toEqual(tool?.mcpAnnotations);
+      }
       expect(toolsList.result.tools[0]?.inputSchema).toMatchObject(toolRegistry[0]!.inputSchema.toJSONSchema({ io: 'input' }));
       expect(toolsList.result.tools[0]?.outputSchema).toMatchObject(toolRegistry[0]!.outputSchema.toJSONSchema());
       expect(toolsList.result.tools[1]?.inputSchema).toMatchObject(toolRegistry.find((tool) => tool.id === 'error_route')!.inputSchema.toJSONSchema({ io: 'input' }));
