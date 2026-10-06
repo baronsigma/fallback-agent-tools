@@ -2,18 +2,18 @@ import { z } from 'zod';
 import { isIP } from 'node:net';
 import { getDomain as getRegistrableDomain } from 'tldts';
 
-export const preferredFormatSchema = z.enum(['json', 'csv', 'xml', 'rss', 'api', 'bulk_download', 'html']);
+export const preferredFormatSchema = z.enum(['json', 'csv', 'xml', 'rss', 'api', 'bulk_download', 'html']).describe('One preferred route format: json, csv, xml, rss, api, bulk_download, or html.');
 
 export const sourceRouteDescription = 'Find likely authoritative or machine-readable sources when you know what information you need but not where to retrieve it. Provide a goal and optional publisher domain or start URL; it returns ranked candidate routes and bounded evidence. Use it before blind searching. Do not use it when you already have the correct source or only need reasoning over supplied context.';
 
 export const sourceRouteInputSchema = z.object({
-  goal: z.string().trim().min(3).max(500),
-  domain: z.hostname().trim().max(253).optional(),
-  start_url: z.string().max(2048).refine((value) => { try { return ['http:', 'https:'].includes(new URL(value).protocol); } catch { return false; } }, 'start_url must be an absolute HTTP or HTTPS URL.').optional(),
-  preferred_formats: z.array(preferredFormatSchema).max(7).optional(),
-  require_official: z.boolean().default(false),
-  max_candidates: z.number().int().min(1).max(10).default(5),
-}).strict();
+  goal: z.string().trim().min(3).max(500).describe('What information to retrieve, in 3 to 500 characters. Used to rank access routes, not to answer a general research question.'),
+  domain: z.hostname().trim().max(253).optional().describe('Optional publisher DNS hostname to inspect. IP addresses, URLs, and credentials are rejected.'),
+  start_url: z.string().max(2048).refine((value) => { try { return ['http:', 'https:'].includes(new URL(value).protocol); } catch { return false; } }, 'start_url must be an absolute HTTP or HTTPS URL.').optional().describe('Optional absolute HTTP or HTTPS URL to start from. Its path and query are kept. When domain is also set, both must identify the same publisher root.'),
+  preferred_formats: z.array(preferredFormatSchema).max(7).optional().describe('Optional formats to prefer when ranking routes, at most 7. Each item is json, csv, xml, rss, api, bulk_download, or html.'),
+  require_official: z.boolean().default(false).describe('When true, omit search results that are not on the supplied publisher host. Defaults to false. This does not assert legal authority.'),
+  max_candidates: z.number().int().min(1).max(10).default(5).describe('Maximum ranked routes to return, from 1 to 10. Defaults to 5.'),
+}).strict().describe('Publisher and goal for bounded source-route discovery. The tool may read public HTTP resources; it does not accept credentials or executable content.');
 
 export const routeTypeSchema = z.enum([
   'official_api', 'openapi', 'bulk_download', 'structured_feed', 'dataset', 'developer_docs', 'structured_web', 'web',

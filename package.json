@@ -4,6 +4,19 @@
   "private": true,
   "description": "Small pay-per-call utilities that resolve uncertainty for autonomous agents.",
   "license": "MIT",
+  "homepage": "https://fallback.factrail.online",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/baronsigma/fallback-agent-tools.git"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "x402",
+    "agents",
+    "ai-agents",
+    "pay-per-call"
+  ],
   "type": "module",
   "engines": {
     "node": ">=22.0.0"

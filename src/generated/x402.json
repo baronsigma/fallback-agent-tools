@@ -27,19 +27,23 @@
           "goal": {
             "type": "string",
             "minLength": 3,
-            "maxLength": 500
+            "maxLength": 500,
+            "description": "What information to retrieve, in 3 to 500 characters. Used to rank access routes, not to answer a general research question."
           },
           "domain": {
+            "description": "Optional publisher DNS hostname to inspect. IP addresses, URLs, and credentials are rejected.",
             "type": "string",
             "maxLength": 253,
             "format": "hostname",
             "pattern": "^(?=.{1,253}\\.?$)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[-0-9a-zA-Z]{0,61}[0-9a-zA-Z])?)*\\.?$"
           },
           "start_url": {
+            "description": "Optional absolute HTTP or HTTPS URL to start from. Its path and query are kept. When domain is also set, both must identify the same publisher root.",
             "type": "string",
             "maxLength": 2048
           },
           "preferred_formats": {
+            "description": "Optional formats to prefer when ranking routes, at most 7. Each item is json, csv, xml, rss, api, bulk_download, or html.",
             "maxItems": 7,
             "type": "array",
             "items": {
@@ -52,15 +56,18 @@
                 "api",
                 "bulk_download",
                 "html"
-              ]
+              ],
+              "description": "One preferred route format: json, csv, xml, rss, api, bulk_download, or html."
             }
           },
           "require_official": {
             "default": false,
+            "description": "When true, omit search results that are not on the supplied publisher host. Defaults to false. This does not assert legal authority.",
             "type": "boolean"
           },
           "max_candidates": {
             "default": 5,
+            "description": "Maximum ranked routes to return, from 1 to 10. Defaults to 5.",
             "type": "integer",
             "minimum": 1,
             "maximum": 10
@@ -69,7 +76,8 @@
         "required": [
           "goal"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Publisher and goal for bounded source-route discovery. The tool may read public HTTP resources; it does not accept credentials or executable content."
       },
       "priceUsd": "0.02",
       "availability": "available",
@@ -87,45 +95,27 @@
         "type": "object",
         "properties": {
           "goal": {
+            "description": "What the failed call was trying to accomplish, from 1 to 500 characters.",
             "type": "string",
             "minLength": 1,
             "maxLength": 500
           },
           "request": {
+            "description": "The failed request. Optional when a response or error string is provided. This tool does not send it.",
             "type": "object",
             "properties": {
               "method": {
+                "description": "HTTP method of the failed request, up to 16 characters.",
                 "type": "string",
                 "maxLength": 16
               },
               "url": {
+                "description": "URL of the failed request, up to 2048 characters. This tool does not call it.",
                 "type": "string",
                 "maxLength": 2048
               },
               "headers": {
-                "type": "object",
-                "propertyNames": {
-                  "type": "string",
-                  "maxLength": 128
-                },
-                "additionalProperties": {
-                  "type": "string",
-                  "maxLength": 2048
-                }
-              },
-              "body": {}
-            },
-            "additionalProperties": false
-          },
-          "response": {
-            "type": "object",
-            "properties": {
-              "status": {
-                "type": "integer",
-                "minimum": 100,
-                "maximum": 599
-              },
-              "headers": {
+                "description": "Request headers supplied as diagnostic context. Credential-like values are not required and are redacted from results.",
                 "type": "object",
                 "propertyNames": {
                   "type": "string",
@@ -137,6 +127,35 @@
                 }
               },
               "body": {
+                "description": "JSON-compatible request body. Serialized size is limited to 8192 characters. It is not forwarded or executed."
+              }
+            },
+            "additionalProperties": false
+          },
+          "response": {
+            "description": "The failed response. Optional when a request or error string is provided.",
+            "type": "object",
+            "properties": {
+              "status": {
+                "description": "HTTP status code of the failed response, from 100 to 599.",
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 599
+              },
+              "headers": {
+                "description": "Response headers supplied as diagnostic context, such as Retry-After or WWW-Authenticate.",
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                "additionalProperties": {
+                  "type": "string",
+                  "maxLength": 2048
+                }
+              },
+              "body": {
+                "description": "Response body text, up to 8192 characters. Treated as untrusted evidence and not copied into the result.",
                 "type": "string",
                 "maxLength": 8192
               }
@@ -144,16 +163,19 @@
             "additionalProperties": false
           },
           "error": {
+            "description": "Client or runtime error text, up to 2048 characters, such as ECONNRESET. At least one of request, response, or error is required.",
             "type": "string",
             "maxLength": 2048
           },
           "attempt": {
+            "description": "How many times this request was already attempted, from 1 to 100.",
             "type": "integer",
             "minimum": 1,
             "maximum": 100
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Failed request evidence for a local classification. Provide a request, response, or error. Nothing is executed or retried."
       },
       "priceUsd": "0.002",
       "availability": "available",
@@ -171,6 +193,7 @@
         "type": "object",
         "properties": {
           "goal": {
+            "description": "What the request was trying to accomplish, from 1 to 500 characters.",
             "type": "string",
             "minLength": 1,
             "maxLength": 500
@@ -179,15 +202,18 @@
             "type": "object",
             "properties": {
               "method": {
+                "description": "HTTP method, from 1 to 16 characters.",
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 16
               },
               "url": {
+                "description": "Request URL, up to 2048 characters. The tool does not call it or invent a replacement.",
                 "type": "string",
                 "maxLength": 2048
               },
               "headers": {
+                "description": "Request headers. Secret-like values are redacted in the result and are not required.",
                 "type": "object",
                 "propertyNames": {
                   "type": "string",
@@ -199,6 +225,7 @@
                 }
               },
               "query": {
+                "description": "Query parameters as a JSON object. Property names are at most 128 characters.",
                 "type": "object",
                 "propertyNames": {
                   "type": "string",
@@ -263,20 +290,25 @@
                     },
                     "additionalProperties": {}
                   }
-                ]
+                ],
+                "description": "JSON-compatible request body within the size and nesting limits. It is not sent."
               }
             },
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "Failed request to repair. Required. This tool does not send or retry it."
           },
           "response": {
+            "description": "Optional failure response. Provide this, error, or error_route.",
             "type": "object",
             "properties": {
               "status": {
+                "description": "HTTP status code of the failure, from 100 to 599.",
                 "type": "integer",
                 "minimum": 100,
                 "maximum": 599
               },
               "headers": {
+                "description": "Response headers used as evidence, such as Allow or Retry-After.",
                 "type": "object",
                 "propertyNames": {
                   "type": "string",
@@ -315,16 +347,19 @@
                     },
                     "additionalProperties": {}
                   }
-                ]
+                ],
+                "description": "JSON-compatible response body used as evidence. It is not copied into the repair result."
               }
             },
             "additionalProperties": false
           },
           "error": {
+            "description": "Error text, up to 4000 characters. Provide this, a response, or error_route.",
             "type": "string",
             "maxLength": 4000
           },
           "error_route": {
+            "description": "Optional previous error_route result. classification is required on this object; other fields may be included within the size limit.",
             "type": "object",
             "properties": {
               "classification": {
@@ -352,9 +387,11 @@
                   "malformed_response",
                   "blocked_or_challenged",
                   "unknown"
-                ]
+                ],
+                "description": "Classification from a previous error_route call. Required when error_route is set. Failures that are not request-shape problems cause abstention."
               },
               "retry": {
+                "description": "Optional retry label from a previous error_route call. Repair decisions use classification together with the request, response, schema, and error text.",
                 "type": "string",
                 "enum": [
                   "never",
@@ -400,21 +437,25 @@
                 },
                 "additionalProperties": {}
               }
-            ]
+            ],
+            "description": "Optional JSON Schema or OpenAPI fragment for the request. Must be a bounded JSON object. The tool does not fetch a schema."
           },
           "constraints": {
             "default": {
               "allow_method_change": false,
               "allow_url_change": false
             },
+            "description": "Caller limits on method and URL changes. Both flags default to false.",
             "type": "object",
             "properties": {
               "allow_method_change": {
                 "default": false,
+                "description": "When true, a 405 response whose Allow header names exactly one method may replace the request method. Defaults to false.",
                 "type": "boolean"
               },
               "allow_url_change": {
                 "default": false,
+                "description": "When true, the caller allows a URL change. Defaults to false. Repairs do not invent or rewrite URLs.",
                 "type": "boolean"
               }
             },
@@ -424,7 +465,8 @@
         "required": [
           "request"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Failed request plus schema or error evidence. Returns the smallest justified edit, or abstains. Nothing is sent."
       },
       "priceUsd": "0.005",
       "availability": "available",
@@ -442,12 +484,14 @@
         "type": "object",
         "properties": {
           "goal": {
+            "description": "What the caller is still trying to find, from 1 to 500 characters.",
             "type": "string",
             "minLength": 1,
             "maxLength": 500
           },
           "checks": {
             "default": [],
+            "description": "Checks the caller already performed, at most 40. Defaults to an empty list. This tool does not run them.",
             "maxItems": 40,
             "type": "array",
             "items": {
@@ -456,7 +500,8 @@
                 "target": {
                   "type": "string",
                   "minLength": 1,
-                  "maxLength": 300
+                  "maxLength": 300,
+                  "description": "Route, URL, or source label already checked, from 1 to 300 characters."
                 },
                 "method": {
                   "type": "string",
@@ -468,7 +513,8 @@
                     "registry",
                     "browser",
                     "other"
-                  ]
+                  ],
+                  "description": "How the caller checked this target: direct, search, documentation, api_catalog, registry, browser, or other."
                 },
                 "result": {
                   "type": "string",
@@ -479,7 +525,8 @@
                     "error",
                     "blocked",
                     "contradictory"
-                  ]
+                  ],
+                  "description": "Caller-reported outcome: found, not_found, inconclusive, error, blocked, or contradictory."
                 },
                 "authority": {
                   "type": "string",
@@ -489,7 +536,8 @@
                     "secondary",
                     "general",
                     "unknown"
-                  ]
+                  ],
+                  "description": "Caller-reported source authority: primary, official, secondary, general, or unknown."
                 },
                 "coverage": {
                   "type": "string",
@@ -497,13 +545,16 @@
                     "low",
                     "medium",
                     "high"
-                  ]
+                  ],
+                  "description": "How much of this target the caller reports having covered: low, medium, or high."
                 },
                 "exhaustive": {
                   "default": false,
+                  "description": "True only when the caller asserts this fresh high-coverage primary or official source was checked exhaustively for its own scope. Defaults to false.",
                   "type": "boolean"
                 },
                 "checked_at": {
+                  "description": "Optional RFC 3339 timestamp with a timezone offset. Evidence older than 30 days, or more than five minutes in the future, is treated as stale.",
                   "type": "string",
                   "format": "date-time",
                   "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
@@ -516,11 +567,13 @@
                 "authority",
                 "coverage"
               ],
-              "additionalProperties": false
+              "additionalProperties": false,
+              "description": "One caller-reported check. This tool does not perform the check."
             }
           },
           "remaining_routes": {
             "default": [],
+            "description": "Routes the caller has not tried, at most 20. Defaults to an empty list.",
             "maxItems": 20,
             "type": "array",
             "items": {
@@ -529,7 +582,8 @@
                 "route": {
                   "type": "string",
                   "minLength": 1,
-                  "maxLength": 300
+                  "maxLength": 300,
+                  "description": "Unchecked route the caller could still try, from 1 to 300 characters."
                 },
                 "expected_value": {
                   "anyOf": [
@@ -545,9 +599,11 @@
                       "type": "string",
                       "const": "unknown"
                     }
-                  ]
+                  ],
+                  "description": "Caller-estimated value of trying this route: low, medium, high, or unknown."
                 },
                 "estimated_cost_usd": {
+                  "description": "Caller-estimated USD cost of trying this route, from 0 to 10000. Not a price charged by this service.",
                   "type": "number",
                   "minimum": 0,
                   "maximum": 10000
@@ -557,28 +613,34 @@
                 "route",
                 "expected_value"
               ],
-              "additionalProperties": false
+              "additionalProperties": false,
+              "description": "One route the caller has not checked yet."
             }
           },
           "search_budget": {
+            "description": "Optional caller-reported search budget. This service does not meter or quote that budget.",
             "type": "object",
             "properties": {
               "calls_used": {
+                "description": "Search or retrieval calls the caller has already spent, from 0 to 10000.",
                 "type": "integer",
                 "minimum": 0,
                 "maximum": 10000
               },
               "calls_remaining": {
+                "description": "Search or retrieval calls the caller can still spend, from 0 to 10000.",
                 "type": "integer",
                 "minimum": 0,
                 "maximum": 10000
               },
               "cost_used_usd": {
+                "description": "Caller-reported USD already spent on this search, from 0 to 10000.",
                 "type": "number",
                 "minimum": 0,
                 "maximum": 10000
               },
               "cost_remaining_usd": {
+                "description": "Caller-reported USD still available for this search, from 0 to 10000.",
                 "type": "number",
                 "minimum": 0,
                 "maximum": 10000
@@ -588,6 +650,7 @@
           },
           "risk": {
             "default": "medium",
+            "description": "How costly a wrong stop would be for the search budget: low, medium, or high. Defaults to medium. This is not a legal, medical, or safety judgment.",
             "type": "string",
             "enum": [
               "low",
@@ -596,7 +659,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Caller-supplied search evidence for a stop-or-continue decision. The tool performs no searches and does not prove absence."
       },
       "priceUsd": "0.003",
       "availability": "available",
