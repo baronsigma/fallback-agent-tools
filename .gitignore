@@ -2,6 +2,7 @@ node_modules/
 dist/
 coverage/
 eval-results/
+.local/
 .env
 .env.*
 !.env.example

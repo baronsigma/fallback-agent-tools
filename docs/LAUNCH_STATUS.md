@@ -27,21 +27,52 @@ Validated: paid HTTP settlement, paid MCP settlement, independent on-chain trans
 | GitHub | LIVE | Public repository and `v0.1.0-beta.1` prerelease: https://github.com/baronsigma/fallback-agent-tools/releases/tag/v0.1.0-beta.1 |
 | MCP Registry | LIVE | Active listing is searchable as `io.github.baronsigma/fallback-agent-tools`, version `0.1.0-beta.1`; remote: https://fallback.factrail.online/mcp. [Official Registry record](https://registry.modelcontextprotocol.io/v0/servers/io.github.baronsigma%2Ffallback-agent-tools/versions/0.1.0-beta.1). |
 | OpenX402 | LIVE | Four HTTP resources indexed with correct price, network, USDC asset, and receiver. Discovery records currently expose empty `metadata` fields. |
-| Smithery | MANUAL ACTION REQUIRED | No authenticated publisher credentials available. Publish the remote MCP URL with the copy in `distribution/smithery/metadata.json`. |
-| Glama | MANUAL ACTION REQUIRED | Root `glama.json` is valid; submit the GitHub repository or remote MCP URL using Glama’s Add MCP Server flow. |
-| x402.new | PENDING | No Fallback match found. OpenX402 resources are present; x402.new documents Bazaar-based automatic indexing. Recheck after catalog propagation. |
+| Smithery | MANUAL ACTION REQUIRED | No Smithery credentials/session are available here and no listing was found. Sign in at https://smithery.ai/new, publish the remote URL `https://fallback.factrail.online/mcp`, and use the submission copy below. |
+| Glama | MANUAL ACTION REQUIRED | Root `glama.json` is valid, but no listing/authenticated submission is available here. Sign in to Glama, choose **Add Server**, and submit `https://github.com/baronsigma/fallback-agent-tools` with display name “Fallback” and the description below. |
+| x402.new | PENDING | No match by hostname or service name. Its current listing page describes Bazaar-based indexing and automatic sync; no separate free listing form was found. Recheck after propagation. |
 | Roundhouse | NOT INDEXED | Current searches by hostname, receiver, and exact resource URL return no entries. |
-| Market402 | PENDING | Published index remains stale and shows an earlier HTTP 404; it predates the successful production settlement and live 402 checks. Recheck when the directory refreshes. |
-| x402-list | MANUAL ACTION REQUIRED | Submission details are prepared; a submitter contact email is mandatory and not available here. Closest supported category: **Verification**. |
+| Market402 | PENDING | Current public index remains timestamped `2026-10-06T03:11:54Z` and shows the earlier HTTP 404; it has not re-probed the later successful production settlement in its available published record. |
+| x402-list | MANUAL ACTION REQUIRED | Submission is prepared with category **AI**. A submitter contact email is mandatory and remains the only blocker. |
+
+### Secondary listing copy
+
+**Smithery**
+
+- Name: Fallback
+- Description: Pay-per-call tools that help AI agents find sources, diagnose failures, repair requests, and decide when to stop searching.
+- MCP: https://fallback.factrail.online/mcp
+- Repository: https://github.com/baronsigma/fallback-agent-tools
+- Homepage: https://fallback.factrail.online
+
+**Glama**
+
+- Repository: https://github.com/baronsigma/fallback-agent-tools
+- Display name: Fallback
+- Description: Pay-per-call tools that help AI agents find sources, diagnose failures, repair requests, and decide when to stop searching.
+- Existing root metadata: `glama.json`. Public MCP: https://fallback.factrail.online/mcp
+
+**x402-list**
+
+- Name: Fallback
+- Website: https://fallback.factrail.online
+- MCP: https://fallback.factrail.online/mcp
+- Repository: https://github.com/baronsigma/fallback-agent-tools
+- Description: Pay-per-call recovery and decision utilities for autonomous agents.
+- Category: AI
+- Network/payment: Base mainnet; x402 V2 / USDC
+- Tools: `source_route` $0.020; `error_route` $0.002; `request_repair` $0.005; `stop_search` $0.003.
+- Blocker: required submitter contact email is not available here.
 
 ## Launch telemetry baseline
 
 Baseline timestamp: **2026-10-06 18:37 UTC**, after the launch smoke checks and before treating later traffic as potential external usage. Internal/test activity through this baseline:
 
-- Paid HTTP seeds: five total across four resources (the prior `error_route` milestone plus one paid call each to `source_route`, `request_repair`, and `stop_search`).
+- Paid HTTP seeds: four total across four resources (the prior `error_route` milestone plus one paid call each to `source_route`, `request_repair`, and `stop_search`).
 - Paid MCP smoke tests: one `error_route` call.
-- Known paid internal calls: six total; five HTTP and one MCP. No duplicate paid resource seed was made.
+- Known paid internal calls: five total; four HTTP and one MCP. No duplicate paid resource seed was made.
 - Payment challenges and the one replay attempt are test activity too; the rejected replay produced no second settlement or paid handler result.
 - Existing telemetry uses a payer HMAC fingerprint. This note stores no raw payer identity and does not rewrite historical telemetry.
 
 This is a known-activity baseline, not a claim that all observed calls came from one client or that future paid activity is necessarily external. Use aggregate telemetry and settlement reconciliation for subsequent reporting.
+
+The operator command `npm run usage:report -- --since 24h` reuses the same validated telemetry event schema, excludes known internal launch payer fingerprints held in the ignored, permission-restricted `.local/internal-payer-fingerprints.txt`, and reports total activity alongside organic paid usage. It prints counts only, never the payer fingerprints or wallet addresses.

@@ -114,3 +114,73 @@ export function summarizeTelemetryLines(lines: Iterable<string>) {
   }));
   return { schema_version: 1, accepted_events: acceptedEvents, ignored_lines: ignoredLines, payer_summary_by_mode: payerSummary, by_tool: byTool };
 }
+
+export function summarizeUsageLines(lines: Iterable<string>, internalPayerFingerprints: ReadonlySet<string>) {
+  const events: AcceptedEvent[] = [];
+  let ignoredLines = 0;
+  for (const line of lines) {
+    let value: unknown;
+    try { value = JSON.parse(line); } catch { ignoredLines += 1; continue; }
+    const event = parseEvent(value);
+    if (!event) { ignoredLines += 1; continue; }
+    events.push(event);
+  }
+
+  const paid = events.filter((event) => event.payment_state === 'settled');
+  const organicPaid = paid.filter((event) => event.payer_fingerprint && !internalPayerFingerprints.has(event.payer_fingerprint));
+  const internalPaid = paid.filter((event) => event.payer_fingerprint && internalPayerFingerprints.has(event.payer_fingerprint));
+  const unclassifiedPaid = paid.filter((event) => !event.payer_fingerprint);
+  const organicPayerCalls = new Map<string, number>();
+  for (const event of organicPaid) {
+    const fingerprint = event.payer_fingerprint!;
+    organicPayerCalls.set(fingerprint, (organicPayerCalls.get(fingerprint) ?? 0) + 1);
+  }
+
+  const paidCallsByTool: Record<string, { all_paid_calls: number; organic_paid_calls: number }> = {};
+  const transportCounts: Record<string, { all_paid_calls: number; organic_paid_calls: number }> = {
+    http: { all_paid_calls: 0, organic_paid_calls: 0 },
+    mcp: { all_paid_calls: 0, organic_paid_calls: 0 },
+  };
+  const resultDistribution: Record<string, number> = {};
+  const allResultDistribution: Record<string, number> = {};
+  let organicAbstentions = 0;
+  let allAbstentions = 0;
+  for (const event of paid) {
+    const tool = paidCallsByTool[event.tool_id] ?? { all_paid_calls: 0, organic_paid_calls: 0 };
+    tool.all_paid_calls += 1;
+    paidCallsByTool[event.tool_id] = tool;
+    transportCounts[event.channel]!.all_paid_calls += 1;
+  }
+  for (const event of events) {
+    if (event.result_category) allResultDistribution[event.result_category] = (allResultDistribution[event.result_category] ?? 0) + 1;
+    if (event.abstained) allAbstentions += 1;
+  }
+  for (const event of organicPaid) {
+    paidCallsByTool[event.tool_id]!.organic_paid_calls += 1;
+    transportCounts[event.channel]!.organic_paid_calls += 1;
+    if (event.result_category) resultDistribution[event.result_category] = (resultDistribution[event.result_category] ?? 0) + 1;
+    if (event.abstained) organicAbstentions += 1;
+  }
+  const totalRevenue = paid.reduce((sum, event) => sum + usdMicros(event.price_usd), 0n);
+  const organicRevenue = organicPaid.reduce((sum, event) => sum + usdMicros(event.price_usd), 0n);
+
+  return {
+    since_filtered_calls: events.length,
+    total_calls: events.length,
+    paid_calls: paid.length,
+    internal_paid_calls_excluded_from_organic: internalPaid.length,
+    paid_calls_without_payer_fingerprint: unclassifiedPaid.length,
+    organic_paid_calls: organicPaid.length,
+    unique_organic_payer_fingerprints: organicPayerCalls.size,
+    returning_organic_payers: [...organicPayerCalls.values()].filter((count) => count > 1).length,
+    revenue_usd: formatUsd(totalRevenue),
+    organic_revenue_usd: formatUsd(organicRevenue),
+    paid_calls_by_tool: Object.fromEntries(Object.entries(paidCallsByTool).sort(([a], [b]) => a.localeCompare(b))),
+    paid_calls_by_transport: transportCounts,
+    all_result_distribution: Object.fromEntries(Object.entries(allResultDistribution).sort(([a], [b]) => a.localeCompare(b))),
+    all_abstentions: allAbstentions,
+    organic_result_distribution: Object.fromEntries(Object.entries(resultDistribution).sort(([a], [b]) => a.localeCompare(b))),
+    organic_abstentions: organicAbstentions,
+    ignored_lines: ignoredLines,
+  };
+}
