@@ -25,7 +25,7 @@ Validated: paid HTTP settlement, paid MCP settlement, independent on-chain trans
 | Surface | Status | Evidence / remaining action |
 |---|---|---|
 | GitHub | LIVE | Public repository and `v0.1.0-beta.1` prerelease: https://github.com/baronsigma/fallback-agent-tools/releases/tag/v0.1.0-beta.1 |
-| MCP Registry | MANUAL ACTION REQUIRED | Manifest validates. Existing publisher token is expired. Complete GitHub device authorization, then publish and verify `io.github.baronsigma/fallback-agent-tools` version `0.1.0-beta.1`. |
+| MCP Registry | LIVE | Active listing is searchable as `io.github.baronsigma/fallback-agent-tools`, version `0.1.0-beta.1`; remote: https://fallback.factrail.online/mcp. [Official Registry record](https://registry.modelcontextprotocol.io/v0/servers/io.github.baronsigma%2Ffallback-agent-tools/versions/0.1.0-beta.1). |
 | OpenX402 | LIVE | Four HTTP resources indexed with correct price, network, USDC asset, and receiver. Discovery records currently expose empty `metadata` fields. |
 | Smithery | MANUAL ACTION REQUIRED | No authenticated publisher credentials available. Publish the remote MCP URL with the copy in `distribution/smithery/metadata.json`. |
 | Glama | MANUAL ACTION REQUIRED | Root `glama.json` is valid; submit the GitHub repository or remote MCP URL using Glama’s Add MCP Server flow. |
